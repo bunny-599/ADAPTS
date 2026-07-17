@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-50: #f5f7ff;
+  --color-brand-100: #ebf0ff;
+  --color-brand-200: #d6e0ff;
+  --color-brand-300: #b3c7ff;
+  --color-brand-400: #85a3ff;
+  --color-brand-500: #6366f1; /* Indigo primary */
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #3d34cf;
+  --color-brand-800: #2d25a6;
+  --color-brand-900: #1b1464;
+  --color-brand-950: #0b0833;
+
+  --color-slate-850: #1e293b;
+  --color-slate-950: #0f172a;
+
+  --font-sans: 'Outfit', 'Inter', 'sans-serif';
+
+  --animate-fade-in: fadeIn 0.5s ease-out forwards;
+  --animate-slide-up: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-pulse-subtle: pulseSubtle 2.5s infinite ease-in-out;
+  --animate-float: float 6s ease-in-out infinite;
+
+  @keyframes fadeIn {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+  @keyframes slideUp {
+    0% { transform: translateY(16px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes pulseSubtle {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.85; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+}
+
+@layer base {
+  body {
+    font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+    @apply overflow-x-hidden scroll-smooth bg-slate-950 text-slate-100;
+  }
+
+  /* Custom Scrollbar for a premium look */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-slate-950;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-800 rounded-full border border-slate-950 hover:bg-indigo-600 transition-all duration-300;
+  }
+}
+
+/* Glassmorphism Panel */
+.glass-panel {
+  @apply bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 shadow-2xl;
+}
+
+.glass-input {
+  @apply bg-slate-950/50 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-3 outline-none text-slate-100 placeholder:text-slate-500 transition-all duration-200;
+}
+
+/* Premium Buttons */
+.btn-primary {
+  @apply bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold py-3 px-6 rounded-xl shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 transform hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2;
+}
+
+.btn-secondary {
+  @apply bg-slate-900 border border-slate-800 hover:bg-slate-800/80 hover:border-slate-700 text-slate-200 font-semibold py-3 px-6 rounded-xl transform hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2;
+}
+
+/* Background Glow Elements */
+.glow-purple {
+  @apply absolute w-72 h-72 rounded-full bg-purple-600/10 blur-[100px] pointer-events-none;
+}
+
+.glow-indigo {
+  @apply absolute w-80 h-80 rounded-full bg-indigo-600/15 blur-[120px] pointer-events-none;
+}
+
+.glow-cyan {
+  @apply absolute w-72 h-72 rounded-full bg-cyan-500/10 blur-[100px] pointer-events-none;
+}
+
+/* Card Hover effect shine */
+.card-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-shine::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 45%,
+    rgba(255, 255, 255, 0.03) 50%,
+    transparent 55%
+  );
+  transform: rotate(45deg);
+  transition: transform 0.5s ease-out;
+}
+
+.card-shine:hover::after {
+  transform: translate(50%, 50%) rotate(45deg);
+}
+
+/* Custom background grid overlay */
+.bg-grid-pattern {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+}
