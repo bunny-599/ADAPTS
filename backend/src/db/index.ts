@@ -7,15 +7,31 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../../.env'), override: false });
 dotenv.config();
 
-export const getDatabaseConfig = () => ({
-  host: process.env.DATABASE_HOST || 'localhost',
-  port: parseInt(process.env.DATABASE_PORT || '5432', 10),
-  database: process.env.DATABASE_NAME || 'adaptive_assessment',
-  user: process.env.DATABASE_USER || 'postgres',
-});
+export const getDatabaseConfig = () => {
+  if (process.env.DATABASE_URL) {
+    try {
+      const u = new URL(process.env.DATABASE_URL);
+      return {
+        host: u.hostname,
+        port: parseInt(u.port || '5432', 10),
+        database: u.pathname.replace(/^\//, ''),
+        user: u.username,
+      };
+    } catch {
+      // fallback to standard env vars
+    }
+  }
+  return {
+    host: process.env.DATABASE_HOST || 'localhost',
+    port: parseInt(process.env.DATABASE_PORT || '5432', 10),
+    database: process.env.DATABASE_NAME || 'adaptive_assessment',
+    user: process.env.DATABASE_USER || 'postgres',
+  };
+};
 
 const isProduction = process.env.NODE_ENV === 'production';
 const useSsl = process.env.DATABASE_SSL === 'true' || 
+  (!!process.env.DATABASE_URL && process.env.DATABASE_SSL !== 'false' && !process.env.DATABASE_URL.includes('localhost') && !process.env.DATABASE_URL.includes('127.0.0.1')) ||
   (isProduction && process.env.DATABASE_HOST !== 'localhost' && process.env.DATABASE_HOST !== '127.0.0.1');
 
 const poolConfig: PoolConfig = process.env.DATABASE_URL

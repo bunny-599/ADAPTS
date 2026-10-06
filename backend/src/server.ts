@@ -44,10 +44,13 @@ app.use(
       if (!origin) {
         return callback(null, true);
       }
-      // Always allow local development and testing origins regardless of port
+      // Always allow local development and popular cloud preview/production domains
       if (
         origin.startsWith('http://localhost') ||
-        origin.startsWith('http://127.0.0.1')
+        origin.startsWith('http://127.0.0.1') ||
+        origin.endsWith('.vercel.app') ||
+        origin.endsWith('.onrender.com') ||
+        origin.endsWith('.netlify.app')
       ) {
         return callback(null, true);
       }
