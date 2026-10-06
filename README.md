@@ -1,192 +1,198 @@
-# ADAPTS - Adaptive Learning Assessment Platform
+# ADAPTS (Adaptive Assessment Platform)
 
-ADAPTS is a full-stack web application designed to help users assess their understanding of various topics. Users select a field of study, select a subject, and describe what they learned today. The platform uses Gemini AI (via the Gemini API) to generate 5 tailored, pedagogical questions testing both conceptual and practical understanding.
+> **"Don't just ask me what I know. Put me in a situation where I have to prove I know it."**  
+> *Learn it. Test it. Prove it.*
 
----
-
-## 🌟 Features
-
-- **Home Page**: Premium landing interface highlighting core engine elements.
-- **Assessment Form**: Clean, glassmorphic layout featuring dynamic subject selections based on the field of study, input validation, and real-time character counters.
-- **AI Assessment Generator**: Real-time generation of 5 conceptual and practical questions using the Gemini API.
-- **Loading State**: An interactive loader displaying rotating pedagogical tips and a smooth spinning visual.
-- **Results View**: A layout displaying generated questions in card forms, with action utilities to copy a single question, copy the entire assessment, print the page, or export the questions as a Markdown file.
-- **Database Integration**: Automatically persists all generated questions and topics. Defaults to an in-memory H2 database for out-of-the-box operation and supports PostgreSQL.
+ADAPTS is a production-grade, AI-powered adaptive assessment platform designed specifically for **Computer Science**. The learner inputs what they studied; ADAPTS decomposes the topic, conducts web-grounded research, prompts for clarification if the input is ambiguous, provides a concise revision refresher, generates grounded candidate questions, verifies question-answer semantic correctness through deterministic and LLM validation, optimizes the assessment using a Genetic Algorithm, and provides a server-timed, autosaved assessment taking experience. Evaluated performance updates a verifiable skill profile and directly drives future adaptive assessments.
 
 ---
 
-## 🏗️ Folder Structure
+## 1. Product & Architecture Overview
 
+### Central Product Loop
 ```
-ADAPTS/
-├── backend/
-│   ├── pom.xml
-│   └── src/
-│       └── main/
-│           ├── java/com/adapts/
-│           │   ├── client/
-│           │   │   └── GeminiClient.java          # Connector to Gemini API
-│           │   ├── controller/
-│           │   │   └── AssessmentController.java  # REST API Controller
-│           │   ├── dto/
-│           │   │   ├── AssessmentRequest.java     # Request Data Record
-│           │   │   └── AssessmentResponse.java    # Response Data Record
-│           │   ├── exception/
-│           │   │   └── GlobalExceptionHandler.java# JSON REST Error formatter
-│           │   ├── model/
-│           │   │   └── Assessment.java            # JPA entity mapping
-│           │   ├── repository/
-│           │   │   └── AssessmentRepository.java  # JPA Repository
-│           │   └── AdaptsApplication.java         # Spring Boot Entry Point
-│           └── resources/
-│               ├── application.properties         # App config (Ports, CORS, DB)
-│               └── schema.sql                     # PostgreSQL setup DDL script
-├── frontend/
-│   ├── package.json
-│   ├── tailwind.config.js                         # Tailwind UI styles & keyframes
-│   ├── postcss.config.js
-│   ├── index.html                                 # SEO & Font imports
-│   └── src/
-│       ├── main.jsx                               # React entry
-│       ├── index.css                              # Tailwind base & glassmorphism components
-│       ├── App.jsx                                # Main views coordinator
-│       ├── components/
-│       │   ├── Navbar.jsx
-│       │   ├── Footer.jsx
-│       │   ├── Loader.jsx                         # Rotating-quote loader
-│       │   └── QuestionCard.jsx                   # Flashcard layout & copy utilities
-│       ├── pages/
-│       │   ├── Home.jsx
-│       │   ├── AssessmentForm.jsx
-│       │   └── Results.jsx
-│       └── services/
-│           └── api.js                             # API caller client
-└── README.md
+LOGIN (Clerk Authentication)
+  ↓
+DASHBOARD (Personalized, Zero Fake Data)
+  ↓
+START NEW ASSESSMENT ("What did you learn?" → Analyze Topic)
+  ↓
+TOPIC ANALYSIS (/api/topics/analyze)
+  ↓
+CLARIFICATION (If Ambiguous → Radio Selection)
+  ↓
+WEB RESEARCH (/api/research with Source Credibility)
+  ↓
+QUICK REVISION ("Your Topic at a Glance" Refresher)
+  ↓
+ASSESSMENT PREPARATION (Automated: Candidate Gen → Semantic Validation → GA Optimization)
+  ↓
+ASSESSMENT TAKING (3-Column Layout: Navigator, Question/Answer Area, Server-Synced Timer & Controls)
+  ↓
+SUBMISSION (Transactional Confirmation Modal & Duplicate Prevention)
+  ↓
+REAL EVALUATION (Deterministic MCQ + LLM Rubric + Docker C++ Sandbox)
+  ↓
+PERFORMANCE RESULTS & SKILL PROFILING (Empirical Confidence & Trend Detection)
+  ↓
+ADAPTIVE NEXT ASSESSMENT (Dynamic Difficulty Adjustment: 0.20–0.85, Clamped Step ≤ 0.08)
 ```
 
 ---
 
-## 🛠️ Prerequisites
+## 2. Key Engineering Capabilities
 
-Make sure you have the following installed on your machine:
-- **Java Development Kit (JDK)**: Version 17 or higher
-- **Node.js**: Version 18.0.0 or higher (includes `npm`)
-- **Apache Maven**: Version 3.8.0 or higher
+1. **Real Clerk Authentication & User Isolation:**
+   - Real Clerk session identity in navbar and sidebar (`displayName`, `avatarUrl`, email, and Clerk account profile management).
+   - Strict database tenant isolation: queries are scoped to verified authenticated user contexts. User A cannot view User B's attempts, responses, skills, or notifications.
+
+2. **Automated Pipeline (No User-Facing "Generate Questions"):**
+   - Candidate generation, multi-stage semantic validation, and Genetic Algorithm selection run autonomously behind the scenes after research and revision.
+
+3. **Semantic Question-Answer Validation & Correctness:**
+   - Dedicated `questionAnswerConsistency` validator enforces algorithm mechanisms and complexity constraints.
+   - **Critical Regression Tests Enforced:**
+     - Linear search primary mechanism: Sequential scanning (**PASS**); divide-and-conquer (**FAIL**).
+     - Linear search best-case time complexity: $O(1)$ (**PASS**); $O(N)$ (**FAIL**).
+     - Linear search worst-case time complexity: $O(N)$ (**PASS**); $O(1)$ (**FAIL**).
+     - Linear search average-case time complexity: $O(N)$ (**PASS**).
+     - Binary search primary mechanism: Repeatedly divide sorted search interval (**PASS**); sequential scan (**FAIL**).
+     - Data structure operational disciplines: Stack (LIFO), Queue (FIFO), BFS (Queue), DFS (Stack/recursion).
+
+4. **Genetic Algorithm Optimizer:**
+   - Multi-objective fitness function optimizing:
+     - Topic & subtopic coverage
+     - Skill alignment & priority weights
+     - Difficulty target alignment ($0.0 \le D \le 1.0$)
+     - Question type diversity (MCQ, Conceptual, Debugging, Scenario, Coding)
+     - Cognitive diversity (Bloom's Taxonomy: remember, understand, apply, analyze, evaluate)
+     - Redundancy penalty & estimated duration fit
+
+5. **Server-Authoritative Timer & Autosave:**
+   - Server computes remaining duration based on `started_at` and `duration_seconds`.
+   - Browser refresh or opening multiple tabs retains exact server countdown.
+   - Autosaves every answer selection/input progressively to database (`POST /api/attempts/:attemptId/responses`).
+
+6. **Real-Time Notifications & History:**
+   - Unread badge counter, notification dropdown panel with mark-as-read and mark-all-read operations.
+   - Chronological attempt history with accuracy metrics, completion rates, and adaptive skill trends.
+
+7. **Zero Fake Data:**
+   - Clean, elegant empty states for users with 0 assessments. No mock cards, fake analytics, or decorative gamification XP.
 
 ---
 
-## 🚀 Setup Instructions
+## 3. Technology Stack
 
-### 1. Gemini API Key Setup
+- **Frontend:** React 18, TypeScript, Vite, `@clerk/react`, Vanilla CSS Design Tokens (Dark Theme: Deep Charcoal `#070a12`, Cyan/Electric Blue accents `#0284c7`/`#38bdf8`)
+- **Backend:** Node.js, Express.js, TypeScript, PostgreSQL (`pg`), `@google/genai` (Gemini SDK), Tavily Search API
+- **Evaluation:** Deterministic MCQ comparator, LLM Free-Text Rubric Evaluator, Docker C++ Sandbox (`--network none`, memory/CPU/PID limits)
+- **Database:** PostgreSQL (`topics`, `research_sessions`, `research_sources`, `candidate_questions`, `assessments`, `assessment_attempts`, `assessment_responses`, `answer_evaluations`, `performance_analyses`, `skill_profiles`, `notifications`, `users`)
 
-You need a Gemini API Key to run this application. Obtain one from the [Google AI Studio](https://aistudio.google.com/).
+---
 
-Set the key as an environment variable:
+## 4. Environment Variables
 
-**On Windows (Command Prompt):**
-```cmd
-set GEMINI_API_KEY=your_gemini_api_key_here
+Create `.env` in the root directory (and `backend/.env`, `frontend/.env.local`):
+
+### Backend (`backend/.env`)
+```env
+PORT=5000
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/adaptive_assessment
+GEMINI_API_KEY=your_gemini_api_key_here
+SEARCH_PROVIDER_KEY=your_tavily_or_search_api_key
+JWT_SECRET=your_jwt_signing_secret_min_32_chars
+CLERK_SECRET_KEY=your_clerk_backend_secret_key
+CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 ```
 
-**On Windows (PowerShell):**
-```powershell
-$env:GEMINI_API_KEY="your_gemini_api_key_here"
+### Frontend (`frontend/.env.local`)
+```env
+VITE_API_URL=http://localhost:5000
+VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 ```
 
-**On macOS / Linux:**
+---
+
+## 5. Local Setup & Execution
+
+### 1. Install Dependencies
 ```bash
-export GEMINI_API_KEY="your_gemini_api_key_here"
+# In backend
+cd backend
+npm install
+
+# In frontend
+cd ../frontend
+npm install
+```
+
+### 2. Database Migration
+Ensure PostgreSQL is running, then run schema initialization:
+```bash
+psql -U postgres -d adaptive_assessment -f database/schema.sql
+```
+
+### 3. Run Backend Test Suite
+```bash
+cd backend
+npm run test
+```
+All 12 test suites (Topic Analysis, Research, Question Generation, Question Validation, Genetic Optimization, Assessment Taking, Performance Analysis, Adaptive Next Assessment, Learner Progress, Answer Evaluation, Sandbox Execution, and Production Hardening) will execute.
+
+### 4. Build Applications
+```bash
+# Build backend
+cd backend
+npm run build
+
+# Build frontend
+cd ../frontend
+npm run build
+```
+
+### 5. Start Development Servers
+```bash
+# Terminal 1: Backend API
+cd backend
+npm run dev
+
+# Terminal 2: Frontend Client
+cd frontend
+npm run dev
 ```
 
 ---
 
-### 2. Run the Backend (Spring Boot)
+## 6. API Reference (Core Endpoints)
 
-1. Open a terminal and navigate to the backend folder:
-   ```bash
-   cd backend
-   ```
-2. Run compilation and start the server:
-   ```bash
-   mvn spring-boot:run
-   ```
-   The backend server will start on port `8080`.
-   - Swagger / H2 Console: `http://localhost:8080/h2-console`
-     - JDBC URL: `jdbc:h2:mem:adaptsdb`
-     - Username: `sa`
-     - Password: *(Leave blank)*
-
----
-
-### 3. Run the Frontend (React + Vite)
-
-1. Open a new terminal and navigate to the frontend folder:
-   ```bash
-   cd frontend
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Launch the development server:
-   ```bash
-   npm run dev
-   ```
-   The frontend will boot up on `http://localhost:5173`. Open this URL in your web browser.
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/topics/analyze` | Decompose topic input or return clarification requirements |
+| `POST` | `/api/topics` | Persist structured topic metadata |
+| `GET` | `/api/topics/:topicId` | Fetch topic by ID |
+| `POST` | `/api/research` | Search web and extract verified research knowledge |
+| `POST` | `/api/research/revision` | Generate concise Quick Revision bullet points |
+| `POST` | `/api/questions/generate` | (Internal) Generate grounded candidate question pool |
+| `POST` | `/api/questions/validate` | (Internal) Validate structure, sources, and semantic consistency |
+| `POST` | `/api/assessments/optimize` | (Internal) Run Genetic Algorithm assessment selection |
+| `GET` | `/api/assessments/:assessmentId` | Fetch public assessment questions (zero answer key leakage) |
+| `POST` | `/api/assessments/:assessmentId/start`| Initialize assessment attempt with authoritative timer |
+| `GET` | `/api/attempts/:attemptId` | Retrieve attempt state, saved responses, and remaining time |
+| `POST` | `/api/attempts/:attemptId/responses` | Autosave individual student response |
+| `POST` | `/api/attempts/:attemptId/submit` | Lock attempt and record final submission transaction |
+| `POST` | `/api/attempts/:attemptId/evaluate` | Run deterministic and LLM answer evaluation |
+| `POST` | `/api/attempts/:attemptId/analyze` | Compute performance breakdown and skill evidence updates |
+| `POST` | `/api/assessments/adaptive` | Synthesize skill profile into next adaptive assessment |
+| `GET` | `/api/performance` | Retrieve user-scoped historical performance metrics |
+| `GET` | `/api/skills` | Retrieve user-scoped verified skill profiler data |
+| `GET` | `/api/notifications` | Fetch user notifications and unread badge count |
+| `PATCH`| `/api/notifications/:id/read` | Mark single notification as read |
+| `POST` | `/api/notifications/read-all` | Mark all notifications as read |
+| `GET` | `/api/me` | Fetch authenticated user identity context |
 
 ---
 
-## 🗄️ Database Integration
-
-### Out-of-the-Box Mode (H2)
-By default, the backend uses an **in-memory H2 database** to run instantly without requiring a local database server installation. All generated assessments are persisted to H2 in-memory history.
-
-### PostgreSQL Mode
-To switch the platform to PostgreSQL for production use:
-1. Ensure a PostgreSQL instance is running and create a database named `adapts`.
-2. Open `backend/src/main/resources/application.properties` and:
-   - Comment out the H2 Database settings block.
-   - Uncomment the PostgreSQL Database settings block.
-   - Update `spring.datasource.username` and `spring.datasource.password` to match your Postgres server credentials.
-3. The schema is automatically created by Hibernate (`ddl-auto=update`). If you want to configure schemas manually, use the DDL queries provided in [schema.sql](file:///c:/projects/ADAPTS/backend/src/main/resources/schema.sql).
-
----
-
-## 📡 Backend API Contract
-
-### Generate Assessment Questions
-Generate a list of 5 questions based on a field, subject, and topic description.
-
-- **URL**: `/api/generate-questions`
-- **Method**: `POST`
-- **Headers**:
-  - `Content-Type: application/json`
-- **Request Body**:
-  ```json
-  {
-    "field": "Engineering",
-    "subject": "Java",
-    "topic": "I learned variables, data types, loops and methods today."
-  }
-  ```
-- **Response Format (200 OK)**:
-  ```json
-  {
-    "questions": [
-      "Explain the key differences between primitive types like int and non-primitive types like Integer in Java.",
-      "Write a short method in Java that takes a variable and outputs a different message depending on a loop count.",
-      "Why are variables declared final in Java, and when should you use them?",
-      "Under what scenario would you choose a while loop instead of a standard for loop?",
-      "Provide an example of passing parameters into a method by reference vs value in Java."
-    ]
-  }
-  ```
-- **Error Format (400/500)**:
-  ```json
-  {
-    "error": "Bad Request - Validation Failed",
-    "message": "Describe what you learned today in at least 10 characters",
-    "status": 400,
-    "timestamp": "2026-07-17T11:12:00.3254"
-  }
-  ```
+## 7. Roadmap & Scope Constraints
+- **Current Version:** Exclusively supports **Computer Science**.
+- **Future Expansions:** Additional domains (Electronics, Medicine, Finance) and multi-language sandbox runtimes (Python, Java, Rust).
