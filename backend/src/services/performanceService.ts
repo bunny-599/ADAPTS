@@ -38,6 +38,35 @@ export class PerformanceService {
       );
       if (attemptRes.rows.length > 0) {
         attemptData = attemptRes.rows[0];
+
+        // If topicId is missing or null, dynamically resolve from questions or latest topic
+        if (!attemptData.topicId) {
+          try {
+            const qTopicRes = await pool.query(
+              `SELECT q.topic_id, t.topic
+               FROM assessment_questions aq
+               JOIN candidate_questions q ON aq.question_id = q.id
+               JOIN topics t ON q.topic_id = t.id
+               WHERE aq.assessment_id = $1 AND q.topic_id IS NOT NULL
+               LIMIT 1;`,
+              [attemptData.assessmentId]
+            );
+            if (qTopicRes.rows.length > 0) {
+              attemptData.topicId = qTopicRes.rows[0].topic_id;
+              attemptData.topicName = qTopicRes.rows[0].topic;
+              await pool.query('UPDATE assessments SET topic_id = $1 WHERE id = $2;', [attemptData.topicId, attemptData.assessmentId]);
+            } else {
+              const latestTopic = await pool.query('SELECT id, topic FROM topics ORDER BY id DESC LIMIT 1;');
+              if (latestTopic.rows.length > 0) {
+                attemptData.topicId = latestTopic.rows[0].id;
+                attemptData.topicName = latestTopic.rows[0].topic;
+                await pool.query('UPDATE assessments SET topic_id = $1 WHERE id = $2;', [attemptData.topicId, attemptData.assessmentId]);
+              }
+            }
+          } catch {
+            // Safe fallback
+          }
+        }
       }
     } catch (dbErr) {
       // Ignore DB error, proceed to in-memory fallback

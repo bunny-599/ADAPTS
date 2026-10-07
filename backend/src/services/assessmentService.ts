@@ -166,6 +166,26 @@ export class AssessmentService {
     let assessmentId: number | undefined = undefined;
     if (isDatabaseAvailable()) {
       try {
+        let effectiveTopicId = request.topicId || null;
+        if (!effectiveTopicId) {
+          try {
+            const sample = orderedQuestions[0]?.subtopic || orderedQuestions[0]?.concept;
+            if (sample) {
+              const matched = await pool.query(
+                `SELECT id FROM topics WHERE topic ILIKE $1 OR subtopics::text ILIKE $1 ORDER BY id DESC LIMIT 1;`,
+                [`%${sample}%`]
+              );
+              if (matched.rows.length > 0) effectiveTopicId = matched.rows[0].id;
+            }
+            if (!effectiveTopicId) {
+              const latest = await pool.query(`SELECT id FROM topics ORDER BY id DESC LIMIT 1;`);
+              if (latest.rows.length > 0) effectiveTopicId = latest.rows[0].id;
+            }
+          } catch {
+            // Safe fallback
+          }
+        }
+
         const client = await pool.connect();
         try {
           await client.query('BEGIN');
@@ -178,7 +198,7 @@ export class AssessmentService {
            VALUES ($1, $2, $3, $4, $5, $6)
            RETURNING id;`,
           [
-            request.topicId || null,
+            effectiveTopicId,
             targetQuestionCount,
             targetDifficulty,
             best.fitness.total,
@@ -209,7 +229,7 @@ export class AssessmentService {
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'VALID')
                 RETURNING id;`,
                 [
-                  request.topicId || null,
+                  effectiveTopicId,
                   item.type,
                   item.question,
                   item.options ? JSON.stringify(item.options) : null,

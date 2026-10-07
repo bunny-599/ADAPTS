@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useUser, useClerk } from '@clerk/react';
+import { useUser, useClerk, UserButton } from '@clerk/react';
 import { topicService } from '../services/topicService';
 import { User } from '../types/auth';
 
@@ -24,8 +24,27 @@ export const TopUserHeader: React.FC<TopUserHeaderProps> = ({
   const [showSearchModal, setShowSearchModal] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  const displayName = clerkUser?.firstName || clerkUser?.fullName || currentUser?.name || 'Learner';
-  const avatarUrl = clerkUser?.imageUrl || currentUser?.avatarUrl;
+  const emailName = clerkUser?.primaryEmailAddress?.emailAddress
+    ? clerkUser.primaryEmailAddress.emailAddress.split('@')[0]
+    : '';
+  const displayName =
+    clerkUser?.firstName ||
+    (clerkUser?.fullName && clerkUser.fullName !== 'null' ? clerkUser.fullName : null) ||
+    (currentUser?.name && currentUser.name !== 'Learner' ? currentUser.name : null) ||
+    emailName ||
+    'Learner';
+
+  const [liveElo, setLiveElo] = useState<number>(currentUser?.eloScore ?? 0);
+
+  useEffect(() => {
+    topicService.getUserPerformance()
+      .then((perf) => {
+        if (perf && typeof perf.eloScore === 'number') {
+          setLiveElo(perf.eloScore);
+        }
+      })
+      .catch(() => {});
+  }, [currentUser]);
 
   useEffect(() => {
     async function fetchNotifs() {
@@ -58,7 +77,7 @@ export const TopUserHeader: React.FC<TopUserHeaderProps> = ({
   }, []);
 
   const handleProfileClick = () => {
-    if (clerk && clerk.openUserProfile) {
+    if (clerk && typeof clerk.openUserProfile === 'function') {
       clerk.openUserProfile();
     }
   };
@@ -144,7 +163,7 @@ export const TopUserHeader: React.FC<TopUserHeaderProps> = ({
           title="Current ELO Rating"
         >
           <span>⚡</span>
-          <span>{currentUser?.eloScore ?? 0} ELO</span>
+          <span>{liveElo || currentUser?.eloScore || 0} ELO</span>
         </div>
 
         {/* Quick Action Command Launcher */}
@@ -298,17 +317,7 @@ export const TopUserHeader: React.FC<TopUserHeaderProps> = ({
             }}
             title="Account Menu"
           >
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={displayName}
-                style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }}
-              />
-            ) : (
-              <div className="avatar-circle" style={{ width: '28px', height: '28px', fontSize: '0.82rem' }}>
-                {displayName.charAt(0).toUpperCase()}
-              </div>
-            )}
+            <UserButton showName={false} appearance={{ elements: { userButtonAvatarBox: { width: 28, height: 28 } } }} />
             <span style={{ fontSize: '0.88rem', fontWeight: 600, color: '#ffffff' }}>{displayName}</span>
             <span style={{ fontSize: '0.75rem', color: '#64748b' }}>▼</span>
           </div>

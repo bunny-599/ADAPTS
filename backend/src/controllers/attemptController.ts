@@ -95,7 +95,7 @@ export class AttemptController {
         const queryRes = await pool.query(
           `SELECT a.id, a.assessment_id as "assessmentId", a.status,
                   a.started_at as "startedAt", a.submitted_at as "submittedAt",
-                  COALESCE(t.topic, 'Adaptive CS Assessment') as "topicTitle",
+                  COALESCE(t.topic, (SELECT topic FROM topics ORDER BY id DESC LIMIT 1), 'Adaptive CS Assessment') as "topicTitle",
                   p.accuracy, p.overall_score as "overallScore"
            FROM assessment_attempts a
            LEFT JOIN assessments ass ON a.assessment_id = ass.id

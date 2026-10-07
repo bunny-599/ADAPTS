@@ -45,7 +45,8 @@ export async function authenticateToken(
       if (decoded && (decoded.sub || decoded.clerk_id)) {
         const clerkUserId = decoded.sub || decoded.clerk_id;
         const email = decoded.email || decoded.primary_email || `${clerkUserId}@clerk.user`;
-        const name = decoded.name || decoded.first_name || 'Learner';
+        const emailPrefix = email.includes('@') ? email.split('@')[0] : 'Learner';
+        const name = decoded.name || decoded.first_name || emailPrefix;
         const imageUrl = decoded.picture || decoded.image_url;
 
         // Sync with PostgreSQL users table
@@ -102,7 +103,8 @@ export async function optionalToken(
         if (decoded && (decoded.sub || decoded.clerk_id)) {
           const clerkUserId = decoded.sub || decoded.clerk_id;
           const email = decoded.email || decoded.primary_email || `${clerkUserId}@clerk.user`;
-          const name = decoded.name || decoded.first_name || 'Learner';
+          const emailPrefix = email.includes('@') ? email.split('@')[0] : 'Learner';
+          const name = decoded.name || decoded.first_name || emailPrefix;
           const imageUrl = decoded.picture || decoded.image_url;
 
           const appUser = await AuthService.syncClerkUser({

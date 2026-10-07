@@ -31,6 +31,7 @@ export const AssessmentStudioPage: React.FC<AssessmentStudioPageProps> = ({
 
   // Topic & Knowledge state
   const [topic, setTopic] = useState<string>(initialTopic || 'Searching Algorithms');
+  const [topicId, setTopicId] = useState<number | null>(null);
   const [subtopics, setSubtopics] = useState<string[]>([]);
   const [revisionPoints, setRevisionPoints] = useState<string[]>([]);
   const [clarificationData, setClarificationData] = useState<{ message: string; options: string[] } | null>(null);
@@ -112,6 +113,10 @@ export const AssessmentStudioPage: React.FC<AssessmentStudioPageProps> = ({
           subtopics: resolvedSubtopics,
         }).catch(() => null);
 
+        if (savedTopic?.id) {
+          setTopicId(savedTopic.id);
+        }
+
         // Step 3: Grounded Research
         addTelemetry('Querying authoritative research sources via Tavily...');
         const research = await topicService.researchTopic({
@@ -161,10 +166,10 @@ export const AssessmentStudioPage: React.FC<AssessmentStudioPageProps> = ({
         addTelemetry(`Degraded fallback engaged: ${err?.message || 'Network latency'}`);
         setSubtopics(['Core Principles', 'Time Complexity', 'Invariants', 'Applications']);
         setRevisionPoints([
-          'Linear search verifies inputs sequentially in O(N) operations.',
-          'Binary search repeatedly halves the search space in O(log N) operations.',
-          'Binary search mandates strictly sorted collections.',
-          'Linear search operates in O(1) auxiliary space.',
+          `${topic} defines specific syntax, precedence, and operational rules in code.`,
+          'Operator precedence determines evaluation order of sub-expressions.',
+          'Unary and binary operators interact with operand primitive types.',
+          'Short-circuit logic prevents unnecessary right-hand evaluations.',
         ]);
         setStage('briefing');
       } finally {
@@ -195,6 +200,10 @@ export const AssessmentStudioPage: React.FC<AssessmentStudioPageProps> = ({
         topic: selectedClarification,
         subtopics: ['Core Mechanics', 'Complexity Bounds', 'Operational Discipline'],
       }).catch(() => null);
+
+      if (savedTopic?.id) {
+        setTopicId(savedTopic.id);
+      }
 
       const research = await topicService.researchTopic({
         id: savedTopic?.id,
@@ -231,6 +240,7 @@ export const AssessmentStudioPage: React.FC<AssessmentStudioPageProps> = ({
     try {
       // 1. Generate candidate question pool
       const qRes = await topicService.generateQuestions({
+        topicId: topicId || undefined,
         topicTitle: topic,
         knowledgeItems,
         count: 8,
@@ -242,6 +252,7 @@ export const AssessmentStudioPage: React.FC<AssessmentStudioPageProps> = ({
       // 2. Multi-objective GA optimization
       addTelemetry('Running GA fitness optimization: Cognitive Diversity, Difficulty Alignment, Anti-Redundancy...');
       const optimized = await topicService.optimizeAssessment({
+        topicId: topicId || undefined,
         questions: pool,
         targetQuestionCount: 5,
       }).catch(() => null);
@@ -256,49 +267,73 @@ export const AssessmentStudioPage: React.FC<AssessmentStudioPageProps> = ({
             id: 1,
             order: 1,
             type: 'MCQ' as any,
-            question: `What is the best-case time complexity of a standard search operation on ${topic} when the target element is encountered at the root or initial index?`,
-            options: ['O(1)', 'O(log N)', 'O(N)', 'O(N^2)'],
+            question: `Which of the following statements is true regarding core semantics and evaluation in ${topic}?`,
+            options: [
+              `Operands and expressions are evaluated according to defined operator precedence and associativity in ${topic}.`,
+              'Evaluation order is completely non-deterministic regardless of syntax.',
+              'Type conversions never occur during evaluation.',
+              'Parentheses cannot override natural precedence hierarchy.',
+            ],
             difficulty: 0.3,
-            concept: 'Time Complexity',
-            subtopic: 'Best Case',
-            skills: ['Algorithm Analysis'],
+            concept: 'Syntax & Precedence',
+            subtopic: 'Core Rules',
+            skills: ['Language Fundamentals'],
             cognitiveLevel: 'remember' as any,
           },
           {
             id: 2,
             order: 2,
             type: 'CONCEPTUAL' as any,
-            question: `Explain why sorted order is a strict prerequisite for logarithmic interval reduction in ${topic}, and analyze what failure occurs if this invariant is violated.`,
+            question: `Explain the fundamental operational mechanics and execution invariants of ${topic}, highlighting how side effects or short-circuiting impact control flow.`,
             difficulty: 0.5,
-            concept: 'Invariants',
-            subtopic: 'Prerequisites',
-            skills: ['Reasoning'],
+            concept: 'Evaluation Semantics',
+            subtopic: 'Execution Invariants',
+            skills: ['Conceptual Reasoning'],
             cognitiveLevel: 'understand' as any,
           },
           {
             id: 3,
             order: 3,
             type: 'MCQ' as any,
-            question: `Under worst-case execution conditions without pre-computed index tables, what upper bound describes ${topic} traversal?`,
-            options: ['O(N)', 'O(log N)', 'O(1)', 'O(N log N)'],
+            question: `In the context of ${topic}, what is the resulting behavior when evaluating boolean or bitwise conditional expressions?`,
+            options: [
+              'Short-circuit logic halts subsequent evaluations once the result is determined.',
+              'All branch expressions are guaranteed to execute unconditionally.',
+              'Bitwise operations cannot be applied to primitive integer types.',
+              'Unary operations have strictly lower precedence than assignment operations.',
+            ],
             difficulty: 0.5,
-            concept: 'Complexity Bounds',
-            subtopic: 'Worst Case',
-            skills: ['Algorithm Analysis'],
+            concept: 'Conditional Logic',
+            subtopic: 'Short-Circuit & Bitwise',
+            skills: ['Logic Evaluation'],
             cognitiveLevel: 'apply' as any,
           },
           {
             id: 4,
             order: 4,
             type: 'DEBUGGING' as any,
-            question: `Analyze the common off-by-one bug in binary partition calculation: explain why "mid = (low + high) / 2" can cause integer overflow in languages like C++/Java and provide the safe arithmetic alternative.`,
-            difficulty: 0.8,
-            concept: 'Arithmetic Overflow',
-            subtopic: 'Binary Search Implementation',
+            question: `Analyze common syntax and logic bugs in ${topic}: explain how confusing assignment (=) with equality (==) or misjudging operator precedence produces runtime errors, and provide the correct pattern.`,
+            difficulty: 0.7,
+            concept: 'Defensive Coding',
+            subtopic: 'Common Pitfalls',
             skills: ['Debugging', 'Memory Safety'],
             cognitiveLevel: 'analyze' as any,
           },
         ];
+
+        // Ensure fallback assessment is persisted with correct topicId in PostgreSQL
+        try {
+          const fallbackSaved = await topicService.optimizeAssessment({
+            topicId: topicId || undefined,
+            questions: finalQuestions,
+            targetQuestionCount: finalQuestions.length,
+          });
+          if (fallbackSaved?.assessmentId) {
+            finalAssessmentId = fallbackSaved.assessmentId;
+          }
+        } catch {
+          // ignore
+        }
       }
 
       setQuestions(finalQuestions);

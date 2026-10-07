@@ -1,5 +1,5 @@
 import React from 'react';
-import { useUser, useClerk } from '@clerk/react';
+import { useUser, useClerk, UserButton } from '@clerk/react';
 import { Logo } from './Logo';
 import { User } from '../types/auth';
 
@@ -25,11 +25,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'history', label: 'History', icon: '📜' },
   ];
 
-  const displayName = clerkUser?.firstName || clerkUser?.fullName || currentUser?.name || 'Learner';
-  const avatarUrl = clerkUser?.imageUrl || currentUser?.avatarUrl;
+  const emailName = clerkUser?.primaryEmailAddress?.emailAddress
+    ? clerkUser.primaryEmailAddress.emailAddress.split('@')[0]
+    : '';
+  const displayName =
+    clerkUser?.firstName ||
+    (clerkUser?.fullName && clerkUser.fullName !== 'null' ? clerkUser.fullName : null) ||
+    (currentUser?.name && currentUser.name !== 'Learner' ? currentUser.name : null) ||
+    emailName ||
+    'Learner';
 
   const handleProfileClick = () => {
-    if (clerk && clerk.openUserProfile) {
+    if (clerk && typeof clerk.openUserProfile === 'function') {
       clerk.openUserProfile();
     }
   };
@@ -96,30 +103,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* User Footer with Clerk User Profile Edit support */}
       <div className="sidebar-user" style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
         <div
-          onClick={handleProfileClick}
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             width: '100%',
-            cursor: 'pointer',
             padding: '0.4rem 0',
           }}
-          title="Click to view & edit your profile"
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', overflow: 'hidden' }}>
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={displayName}
-                style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
-              />
-            ) : (
-              <div className="avatar-circle" style={{ width: '34px', height: '34px', fontSize: '0.9rem', flexShrink: 0 }}>
-                {displayName.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <div style={{ overflow: 'hidden' }}>
+            <UserButton showName={false} appearance={{ elements: { userButtonAvatarBox: { width: 34, height: 34 } } }} />
+            <div
+              onClick={handleProfileClick}
+              style={{ overflow: 'hidden', cursor: 'pointer' }}
+              title="Click to view & edit your profile"
+            >
               <div
                 style={{
                   fontSize: '0.88rem',

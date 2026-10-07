@@ -448,12 +448,14 @@ export class AuthService {
   }): Promise<UserDTO> {
     const { clerkUserId, email, name, imageUrl } = payload;
     const normEmail = email.trim().toLowerCase();
+    const emailPrefix = normEmail.includes('@') ? normEmail.split('@')[0] : 'Learner';
+    const resolvedName = (name && name !== 'Learner') ? name : emailPrefix;
 
     if (isDatabaseAvailable()) {
       try {
         // 1. Try to find by clerk_user_id
         let res = await pool.query(
-          `SELECT id, email, name, role, clerk_user_id as "clerkUserId", image_url as "imageUrl", created_at as "createdAt"
+          `SELECT id, email, name, role, clerk_user_id as "clerkUserId", image_url as "imageUrl", COALESCE(elo_score, 0)::int as "eloScore", created_at as "createdAt"
            FROM users WHERE clerk_user_id = $1`,
           [clerkUserId]
         );
@@ -461,22 +463,25 @@ export class AuthService {
         if (res.rows.length === 0) {
           // 2. Try to find by email
           res = await pool.query(
-            `SELECT id, email, name, role, clerk_user_id as "clerkUserId", image_url as "imageUrl", created_at as "createdAt"
+            `SELECT id, email, name, role, clerk_user_id as "clerkUserId", image_url as "imageUrl", COALESCE(elo_score, 0)::int as "eloScore", created_at as "createdAt"
              FROM users WHERE email = $1`,
             [normEmail]
           );
 
           if (res.rows.length > 0) {
-            // Update existing user with clerk_user_id and image_url
+            // Update existing user with clerk_user_id, image_url, and name if needed
             const existingId = res.rows[0].id;
             await pool.query(
               `UPDATE users 
-               SET clerk_user_id = $1, image_url = COALESCE($2, image_url), last_login_at = CURRENT_TIMESTAMP, login_count = COALESCE(login_count, 0) + 1
-               WHERE id = $3`,
-              [clerkUserId, imageUrl || null, existingId]
+               SET clerk_user_id = $1, image_url = COALESCE($2, image_url), 
+                   name = CASE WHEN name = 'Learner' OR name IS NULL THEN $3 ELSE name END,
+                   last_login_at = CURRENT_TIMESTAMP, login_count = COALESCE(login_count, 0) + 1
+               WHERE id = $4`,
+              [clerkUserId, imageUrl || null, resolvedName, existingId]
             );
             res.rows[0].clerkUserId = clerkUserId;
             if (imageUrl) res.rows[0].imageUrl = imageUrl;
+            if (res.rows[0].name === 'Learner' || !res.rows[0].name) res.rows[0].name = resolvedName;
             return res.rows[0];
           }
 
@@ -484,8 +489,8 @@ export class AuthService {
           const insertRes = await pool.query(
             `INSERT INTO users (email, password_hash, name, role, clerk_user_id, image_url, last_login_at, login_count)
              VALUES ($1, $2, $3, 'student', $4, $5, CURRENT_TIMESTAMP, 1)
-             RETURNING id, email, name, role, clerk_user_id as "clerkUserId", image_url as "imageUrl", created_at as "createdAt"`,
-            [normEmail, 'clerk_authenticated', name || 'Learner', clerkUserId, imageUrl || null]
+             RETURNING id, email, name, role, clerk_user_id as "clerkUserId", image_url as "imageUrl", COALESCE(elo_score, 0)::int as "eloScore", created_at as "createdAt"`,
+            [normEmail, 'clerk_authenticated', resolvedName, clerkUserId, imageUrl || null]
           );
           return insertRes.rows[0];
         }

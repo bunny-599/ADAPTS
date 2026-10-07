@@ -39,6 +39,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         setRecentAssessments(recent || []);
         setPerformanceData(perf);
 
+        if (perf && typeof perf.eloScore === 'number' && currentUser) {
+          currentUser.eloScore = perf.eloScore;
+          localStorage.setItem('user', JSON.stringify(currentUser));
+        }
+
         // Check for active in_progress attempt
         const inProgress = (recent || []).find((a: any) => a.status === 'in_progress');
         if (inProgress) {
@@ -66,6 +71,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     return 'Good evening';
   };
 
+  const displayElo = performanceData?.eloScore ?? currentUser?.eloScore ?? 0;
   const totalAssessments = performanceData?.totalAssessments || 0;
   const totalQuestions = performanceData?.totalQuestionsAttempted || 0;
   const overallAccuracy = performanceData?.averageAccuracy || 0;
@@ -253,10 +259,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                   ELO Skill Rating
                 </div>
                 <div style={{ fontSize: '2.4rem', fontWeight: 900, color: '#fbbf24', marginTop: '0.4rem', fontFamily: 'Outfit, sans-serif' }}>
-                  {currentUser?.eloScore ?? 0}
+                  {displayElo}
                 </div>
                 <div style={{ fontSize: '0.78rem', color: '#fde68a', marginTop: '0.25rem' }}>
-                  {(currentUser?.eloScore ?? 0) >= 800 ? '⭐ Advanced' : (currentUser?.eloScore ?? 0) >= 300 ? '💠 Intermediate' : '🌱 Beginner'}
+                  {displayElo >= 800 ? '⭐ Advanced' : displayElo >= 300 ? '💠 Intermediate' : '🌱 Beginner'}
                 </div>
               </div>
 

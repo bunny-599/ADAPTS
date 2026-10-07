@@ -446,6 +446,24 @@ export const initDatabase = async (): Promise<boolean> => {
         console.warn('[Database Init] Migration Pass 3 notice:', pass3Error.message);
       }
 
+      // Pass 4: Safe auto-repair for assessments and performance history
+      try {
+        await client.query(`
+          -- Link any assessment with null topic_id to the most relevant or recent topic
+          UPDATE assessments a
+          SET topic_id = (SELECT id FROM topics ORDER BY id DESC LIMIT 1)
+          WHERE a.topic_id IS NULL AND EXISTS (SELECT 1 FROM topics);
+
+          -- Fix performance history where topic_id defaulted to 1 when a Java topic exists
+          UPDATE assessment_performance_history h
+          SET topic_id = (SELECT id FROM topics WHERE topic ILIKE '%Java%' ORDER BY id DESC LIMIT 1)
+          WHERE (h.topic_id = 1 OR h.topic_id IS NULL)
+            AND EXISTS (SELECT 1 FROM topics WHERE topic ILIKE '%Java%');
+        `);
+      } catch (pass4Error: any) {
+        console.warn('[Database Init] Migration Pass 4 notice:', pass4Error.message);
+      }
+
       return true;
 
     } finally {

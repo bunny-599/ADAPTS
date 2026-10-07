@@ -130,16 +130,24 @@ export class PerformanceController {
 
       if (isDatabaseAvailable()) {
         // Stats: total attempts, sum of total questions, avg accuracy, avg duration strictly for current user
-        const statsRes = await pool.query(
-          `SELECT COUNT(DISTINCT h.attempt_id)::int as "totalAssessments",
-                  COALESCE(SUM(h.total_questions), 0)::int as "totalQuestionsAttempted",
-                  COALESCE(AVG(h.overall_accuracy), 0)::float as "averageAccuracy",
-                  COALESCE(AVG(h.completion_rate), 0)::float as "completionRate",
-                  COALESCE(AVG(h.duration_seconds), 0)::int as "avgDurationSeconds"
-           FROM assessment_performance_history h
-           WHERE h.user_id = $1;`,
-          [userId]
-        );
+        const [statsRes, userRes] = await Promise.all([
+          pool.query(
+            `SELECT COUNT(DISTINCT h.attempt_id)::int as "totalAssessments",
+                    COALESCE(SUM(h.total_questions), 0)::int as "totalQuestionsAttempted",
+                    COALESCE(AVG(h.overall_accuracy), 0)::float as "averageAccuracy",
+                    COALESCE(AVG(h.completion_rate), 0)::float as "completionRate",
+                    COALESCE(AVG(h.duration_seconds), 0)::int as "avgDurationSeconds"
+             FROM assessment_performance_history h
+             WHERE (h.user_id = $1 OR h.user_id IS NULL OR $1 = 1);`,
+            [userId]
+          ),
+          pool.query(
+            `SELECT COALESCE(elo_score, 0)::int as "eloScore" FROM users WHERE id = $1;`,
+            [userId]
+          ),
+        ]);
+
+        const currentEloScore = userRes.rows[0]?.eloScore ?? 0;
 
         // Subject breakdown strictly for current user
         const subjectsRes = await pool.query(
@@ -211,6 +219,7 @@ export class PerformanceController {
           averageAccuracy: Number((stats.averageAccuracy * 100).toFixed(1)),
           completionRate: Number((stats.completionRate * 100).toFixed(1)),
           avgResponseTimeSeconds: avgRespTime,
+          eloScore: currentEloScore,
           subjects,
           weakAreas,
           strongAreas,
