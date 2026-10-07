@@ -123,9 +123,15 @@ export const AssessmentHistoryPage: React.FC<AssessmentHistoryPageProps> = ({
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 800, color: isCompleted ? '#34d399' : '#fbbf24' }}>
-                          {scoreDisplay}
-                        </div>
+                        {(() => {
+                          const accPct = item.accuracy !== undefined ? Math.round(item.accuracy * 100) : null;
+                          const scoreColor = accPct !== null ? (accPct < 30 ? '#ef4444' : accPct < 70 ? '#fbbf24' : '#10b981') : (isCompleted ? '#10b981' : '#fbbf24');
+                          return (
+                            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: scoreColor }}>
+                              {scoreDisplay}
+                            </div>
+                          );
+                        })()}
                         <div style={{ fontSize: '0.78rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>
                           {item.status}
                         </div>

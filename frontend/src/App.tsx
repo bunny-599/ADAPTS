@@ -65,16 +65,31 @@ const PATH_TO_ROUTE: Record<string, PageRoute> = {
   '/tracing': 'tracing',
 };
 
-function getRouteFromPath(pathname: string): PageRoute {
+function parseRouteAndParams(pathname: string, search: string): { route: PageRoute; attemptId?: number } {
   const clean = pathname.replace(/\/$/, '') || '/';
-  return PATH_TO_ROUTE[clean] || 'landing';
+  const params = new URLSearchParams(search);
+  const queryId = params.get('id') || params.get('result') || params.get('attemptId');
+  let parsedAttemptId: number | undefined = queryId && !isNaN(Number(queryId)) ? Number(queryId) : undefined;
+
+  // Match /:username/result=1, /:username/results/1, /results/1, /result=1
+  const resultMatch = clean.match(/(?:result(?:s)?(?:[=/:]))(\d+)/i);
+  if (resultMatch && resultMatch[1]) {
+    parsedAttemptId = Number(resultMatch[1]);
+    return { route: 'results', attemptId: parsedAttemptId };
+  }
+
+  if (clean === '/results') {
+    return { route: 'results', attemptId: parsedAttemptId };
+  }
+
+  const route = PATH_TO_ROUTE[clean] || 'landing';
+  return { route, attemptId: parsedAttemptId };
 }
 
 export const App: React.FC = () => {
   const { getToken, isSignedIn } = useAuth();
-  const [currentPage, setCurrentPage] = useState<PageRoute>(() => {
-    return getRouteFromPath(window.location.pathname);
-  });
+  const initialNav = parseRouteAndParams(window.location.pathname, window.location.search);
+  const [currentPage, setCurrentPage] = useState<PageRoute>(() => initialNav.route);
   const [authTab, setAuthTab] = useState<'login' | 'register'>('register');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
@@ -101,7 +116,7 @@ export const App: React.FC = () => {
 
   // Real-Time Assessment Pipeline State
   const [realQuestions, setRealQuestions] = useState<any[]>([]);
-  const [attemptId, setAttemptId] = useState<number>(1);
+  const [attemptId, setAttemptId] = useState<number>(() => initialNav.attemptId || 1);
   const [attemptStartedAt, setAttemptStartedAt] = useState<string | undefined>(undefined);
   const [assessmentLoading, setAssessmentLoading] = useState<boolean>(false);
   const [evaluationResult, setEvaluationResult] = useState<PerformanceAnalysisResult | null>(null);
@@ -123,7 +138,11 @@ export const App: React.FC = () => {
           setAttemptId(e.state.attemptId);
         }
       } else {
-        setCurrentPage(getRouteFromPath(window.location.pathname));
+        const nav = parseRouteAndParams(window.location.pathname, window.location.search);
+        setCurrentPage(nav.route);
+        if (nav.attemptId) {
+          setAttemptId(nav.attemptId);
+        }
       }
     };
 
@@ -144,7 +163,13 @@ export const App: React.FC = () => {
       setEvaluationResult(null);
     }
 
-    const path = ROUTE_TO_PATH[targetRoute] || '/';
+    let path = ROUTE_TO_PATH[targetRoute] || '/';
+    if (targetRoute === 'results') {
+      const aid = newAttemptId || attemptId || 1;
+      const username = currentUser?.username || (currentUser?.name ? currentUser.name.toLowerCase().replace(/\s+/g, '') : (currentUser?.email ? currentUser.email.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '') : 'user'));
+      path = `/${username}/result=${aid}`;
+    }
+
     if (window.location.pathname !== path) {
       window.history.pushState(
         { page: targetRoute, attemptId: newAttemptId || attemptId },
@@ -235,15 +260,14 @@ export const App: React.FC = () => {
   // Step 3: Real-Time Attempt Submission, Evaluation & Performance Analysis
   const handleSubmitSession = async (answers: Record<string, string>) => {
     setEvaluationResult(null);
-    handleNavigate('results');
+    const targetAttemptId = attemptId || 1;
+    handleNavigate('results', { attemptId: targetAttemptId });
 
     try {
       const studentResponses = Object.entries(answers).map(([qId, ans]) => ({
         questionId: qId,
         answer: ans,
       }));
-
-      const targetAttemptId = attemptId || 1;
 
       // Submit attempt
       await topicService.submitAttempt(targetAttemptId, studentResponses).catch(() => null);

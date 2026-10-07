@@ -2,6 +2,7 @@ export interface User {
   id: number;
   email: string;
   name: string;
+  username?: string;
   role: 'student' | 'instructor' | 'admin';
   eloScore?: number;
   avatarUrl?: string;

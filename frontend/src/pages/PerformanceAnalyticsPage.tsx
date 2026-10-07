@@ -103,7 +103,7 @@ export const PerformanceAnalyticsPage: React.FC<PerformanceAnalyticsPageProps> =
               </div>
 
               <div className="glass-card" style={{ padding: '1.5rem', backgroundColor: '#111827', border: '1px solid #1f293d', borderRadius: '12px' }}>
-                <div style={{ fontSize: '2.4rem', fontWeight: 800, color: averageAccuracy >= 70 ? '#34d399' : averageAccuracy >= 50 ? '#fbbf24' : '#f87171', lineHeight: 1 }}>
+                <div style={{ fontSize: '2.4rem', fontWeight: 800, color: averageAccuracy >= 70 ? '#34d399' : averageAccuracy >= 30 ? '#fbbf24' : '#ef4444', lineHeight: 1 }}>
                   {averageAccuracy}%
                 </div>
                 <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#ffffff', marginTop: '0.5rem' }}>
@@ -208,7 +208,7 @@ export const PerformanceAnalyticsPage: React.FC<PerformanceAnalyticsPageProps> =
                       <div key={idx}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.92rem', marginBottom: '0.5rem' }}>
                           <span style={{ fontWeight: 600, color: '#ffffff' }}>{sub.name}</span>
-                          <span style={{ fontWeight: 700, color: pct >= 70 ? '#34d399' : pct >= 50 ? '#fbbf24' : '#f87171' }}>
+                          <span style={{ fontWeight: 700, color: pct >= 70 ? '#34d399' : pct >= 30 ? '#fbbf24' : '#ef4444' }}>
                             {pct}% ({sub.attemptsCount} attempt{sub.attemptsCount !== 1 ? 's' : ''})
                           </span>
                         </div>
@@ -216,7 +216,7 @@ export const PerformanceAnalyticsPage: React.FC<PerformanceAnalyticsPageProps> =
                           <div style={{
                             width: `${pct}%`,
                             height: '100%',
-                            background: pct >= 70 ? 'linear-gradient(90deg, #10b981, #34d399)' : 'linear-gradient(90deg, #d97706, #fbbf24)',
+                            background: pct >= 70 ? 'linear-gradient(90deg, #10b981, #34d399)' : pct >= 30 ? 'linear-gradient(90deg, #d97706, #fbbf24)' : 'linear-gradient(90deg, #dc2626, #ef4444)',
                             borderRadius: '9999px',
                             transition: 'width 0.8s ease-in-out',
                           }} />
@@ -260,8 +260,8 @@ export const PerformanceAnalyticsPage: React.FC<PerformanceAnalyticsPageProps> =
                         <span style={{
                           fontSize: '1.1rem',
                           fontWeight: 700,
-                          color: score >= 70 ? '#34d399' : score >= 50 ? '#fbbf24' : '#f87171',
-                          backgroundColor: score >= 70 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                          color: score >= 70 ? '#34d399' : score >= 30 ? '#fbbf24' : '#ef4444',
+                          backgroundColor: score >= 70 ? 'rgba(16, 185, 129, 0.15)' : score >= 30 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)',
                           padding: '0.35rem 0.85rem',
                           borderRadius: '6px',
                         }}>

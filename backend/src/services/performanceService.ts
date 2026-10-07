@@ -473,6 +473,53 @@ export class PerformanceService {
 
       if (res.rows.length > 0) {
         const row = res.rows[0];
+
+        // Retrieve question-by-question evaluations so the learner can review which questions were correct vs. wrong
+        let evaluatedResponses: QuestionEvaluationResult[] = [];
+        try {
+          const qRes = await pool.query(
+            `SELECT q.id, q.type, q.question as "questionText", q.options, q.correct_answer as "expectedAnswer",
+                    q.explanation, q.difficulty::float as difficulty, q.concept,
+                    q.subtopic, q.skills, q.cognitive_level as "cognitiveLevel",
+                    aq.question_order as "order",
+                    r.answer
+             FROM assessment_questions aq
+             JOIN candidate_questions q ON aq.question_id = q.id
+             JOIN assessment_attempts a ON a.assessment_id = aq.assessment_id
+             LEFT JOIN assessment_responses r ON r.attempt_id = a.id AND r.question_id = q.id
+             WHERE a.id = $1
+             ORDER BY aq.question_order ASC;`,
+            [attemptId]
+          );
+
+          if (qRes.rows.length > 0) {
+            const detEvaluator = new DeterministicAnswerEvaluator();
+            evaluatedResponses = qRes.rows.map((q) => {
+              const questionObj: Question = {
+                id: q.id,
+                type: q.type,
+                question: q.questionText,
+                options: q.options,
+                correctAnswer: q.expectedAnswer,
+                explanation: q.explanation || '',
+                difficulty: q.difficulty,
+                concept: q.concept || q.subtopic,
+                subtopic: q.subtopic,
+                skills: Array.isArray(q.skills) ? q.skills : [q.subtopic],
+                cognitiveLevel: q.cognitiveLevel,
+                sourceReferences: [],
+              };
+              const ev = detEvaluator.evaluate(questionObj, q.answer ?? null);
+              ev.order = q.order;
+              return ev;
+            });
+          }
+        } catch {
+          if (mockAnalysesStore.has(attemptId)) {
+            evaluatedResponses = mockAnalysesStore.get(attemptId)!.evaluatedResponses || [];
+          }
+        }
+
         return {
           status: 'success',
           attemptId,
@@ -494,7 +541,7 @@ export class PerformanceService {
           difficultyRanges: typeof row.difficultyBreakdown === 'string' ? JSON.parse(row.difficultyBreakdown) : row.difficultyBreakdown,
           strengths: Array.isArray(row.strengths) ? row.strengths : JSON.parse(row.strengths || '[]'),
           weaknesses: Array.isArray(row.weaknesses) ? row.weaknesses : JSON.parse(row.weaknesses || '[]'),
-          evaluatedResponses: [],
+          evaluatedResponses,
           createdAt: new Date(row.createdAt).toISOString(),
         };
       }

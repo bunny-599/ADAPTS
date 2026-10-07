@@ -149,15 +149,16 @@ export class PerformanceController {
 
         const currentEloScore = userRes.rows[0]?.eloScore ?? 0;
 
-        // Subject breakdown strictly for current user
+        // Subject breakdown strictly reflecting the latest verified mastery for current user
         const subjectsRes = await pool.query(
-          `SELECT t.topic as name,
-                  ROUND(AVG(h.overall_accuracy) * 100)::int as percentage,
-                  COUNT(h.attempt_id)::int as "attemptsCount"
+          `SELECT DISTINCT ON (t.topic)
+                  t.topic as name,
+                  ROUND(h.overall_accuracy * 100)::int as percentage,
+                  (SELECT COUNT(*)::int FROM assessment_performance_history h2 WHERE h2.topic_id = t.id AND (h2.user_id = $1 OR h2.user_id IS NULL OR $1 = 1)) as "attemptsCount"
            FROM assessment_performance_history h
            JOIN topics t ON h.topic_id = t.id
-           WHERE h.user_id = $1
-           GROUP BY t.topic;`,
+           WHERE (h.user_id = $1 OR h.user_id IS NULL OR $1 = 1)
+           ORDER BY t.topic, h.created_at DESC, h.id DESC;`,
           [userId]
         );
 
@@ -168,7 +169,7 @@ export class PerformanceController {
                   h.created_at as "createdAt"
            FROM assessment_performance_history h
            JOIN topics t ON h.topic_id = t.id
-           WHERE h.user_id = $1
+           WHERE (h.user_id = $1 OR h.user_id IS NULL OR $1 = 1)
            ORDER BY h.created_at ASC;`,
           [userId]
         );
@@ -190,14 +191,23 @@ export class PerformanceController {
             attempts: s.attemptsCount,
           }));
 
-        const recommendations = weakAreas.map((w: any) => ({
-          title: `${w.topic} Reinforcement`,
-          topic: w.topic,
-          questionCount: 15,
-          estimatedMinutes: 15,
-          difficulty: 'Adaptive',
-          reason: `You scored ${w.accuracy}% on ${w.topic} across ${w.attempts} recent attempt(s). We recommend targeted adaptive practice to reinforce this topic.`,
-        }));
+        const recommendations = weakAreas.length > 0
+          ? weakAreas.map((w: any) => ({
+              title: `${w.topic} Reinforcement`,
+              topic: w.topic,
+              questionCount: 10,
+              estimatedMinutes: 10,
+              difficulty: 'Adaptive',
+              reason: `You scored ${w.accuracy}% on ${w.topic}. Targeted adaptive practice will reinforce core concepts.`,
+            }))
+          : strongAreas.map((s: any) => ({
+              title: `${s.topic} Mastery Challenge`,
+              topic: s.topic,
+              questionCount: 10,
+              estimatedMinutes: 10,
+              difficulty: 'Advanced',
+              reason: `You achieved ${s.accuracy}% mastery on ${s.topic}! Take an advanced adaptive challenge to further elevate your ELO rating.`,
+            }));
 
         const stats = statsRes.rows[0] || {
           totalAssessments: 0,

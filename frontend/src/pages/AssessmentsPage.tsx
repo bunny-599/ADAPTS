@@ -229,7 +229,7 @@ export const AssessmentsPage: React.FC<AssessmentsPageProps> = ({
                       </span>
 
                       {accuracy !== null && (
-                        <span style={{ fontSize: '1.1rem', fontWeight: 800, color: accuracy >= 70 ? '#34d399' : '#fbbf24' }}>
+                        <span style={{ fontSize: '1.1rem', fontWeight: 800, color: accuracy >= 70 ? '#34d399' : accuracy >= 30 ? '#fbbf24' : '#ef4444' }}>
                           {accuracy}%
                         </span>
                       )}

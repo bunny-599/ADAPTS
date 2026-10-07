@@ -1,17 +1,22 @@
+/**
+ * In-Memory TTL & LRU Cache Service
+ * Provides fast main-memory caching for web research, topic queries, and frequent lookups
+ * without repeatedly hitting external search APIs or the database.
+ */
+
 interface CacheEntry<T> {
   value: T;
   expiresAt: number;
+  lastAccessed: number;
 }
 
-/**
- * High-performance in-memory TTL cache for reducing database and LLM load.
- */
 export class CacheService {
-  private static store: Map<string, CacheEntry<any>> = new Map();
-  private static readonly MAX_ENTRIES = 5000;
+  private static store = new Map<string, CacheEntry<any>>();
+  private static readonly MAX_ENTRIES = 250;
+  private static readonly DEFAULT_TTL_MS = 1000 * 60 * 60 * 6; // 6 hours
 
   /**
-   * Retrieves a cached value if present and not expired.
+   * Retrieves a cached value if present and unexpired.
    */
   public static get<T>(key: string): T | null {
     const entry = this.store.get(key);
@@ -22,45 +27,53 @@ export class CacheService {
       return null;
     }
 
+    entry.lastAccessed = Date.now();
     return entry.value as T;
   }
 
   /**
-   * Sets a cache key with a TTL in seconds.
+   * Stores a value in memory with an optional TTL.
    */
-  public static set<T>(key: string, value: T, ttlSeconds: number = 300): void {
+  public static set<T>(key: string, value: T, ttlMs: number = this.DEFAULT_TTL_MS): void {
+    // Evict least recently accessed if store exceeds max size
     if (this.store.size >= this.MAX_ENTRIES) {
-      // Evict oldest entries
-      const firstKey = this.store.keys().next().value;
-      if (firstKey) this.store.delete(firstKey);
+      let oldestKey: string | null = null;
+      let oldestAccess = Infinity;
+      for (const [k, v] of this.store.entries()) {
+        if (v.lastAccessed < oldestAccess) {
+          oldestAccess = v.lastAccessed;
+          oldestKey = k;
+        }
+      }
+      if (oldestKey) this.store.delete(oldestKey);
     }
 
     this.store.set(key, {
       value,
-      expiresAt: Date.now() + ttlSeconds * 1000,
+      expiresAt: Date.now() + ttlMs,
+      lastAccessed: Date.now(),
     });
   }
 
   /**
-   * Invalidates a key or pattern prefix.
+   * Checks if a key exists in cache without expiring.
    */
-  public static invalidate(keyOrPrefix: string): void {
-    if (this.store.has(keyOrPrefix)) {
-      this.store.delete(keyOrPrefix);
-      return;
-    }
-
-    for (const key of this.store.keys()) {
-      if (key.startsWith(keyOrPrefix)) {
-        this.store.delete(key);
-      }
-    }
+  public static has(key: string): boolean {
+    return this.get(key) !== null;
   }
 
   /**
-   * Clears the entire cache.
+   * Clears a specific key or all keys.
    */
+  public static delete(key: string): void {
+    this.store.delete(key);
+  }
+
   public static clear(): void {
     this.store.clear();
+  }
+
+  public static size(): number {
+    return this.store.size;
   }
 }

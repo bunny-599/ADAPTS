@@ -79,27 +79,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ))}
       </nav>
 
-      {/* AI Sandbox Engine Status Pill */}
-      <div
-        style={{
-          margin: '1rem 0',
-          padding: '0.75rem 0.9rem',
-          borderRadius: '10px',
-          background: 'rgba(56, 189, 248, 0.06)',
-          border: '1px solid rgba(56, 189, 248, 0.2)',
-          fontSize: '0.78rem',
-          color: '#cbd5e1',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, color: '#38bdf8', marginBottom: '0.2rem' }}>
-          <span className="status-dot-active" />
-          <span>Docker Sandbox Engine</span>
-        </div>
-        <div style={{ color: '#94a3b8', fontSize: '0.74rem', lineHeight: 1.3 }}>
-          Deterministic score verification • Isolate mode ON
-        </div>
-      </div>
-
       {/* User Footer with Clerk User Profile Edit support */}
       <div className="sidebar-user" style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
         <div

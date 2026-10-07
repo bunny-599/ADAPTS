@@ -44,10 +44,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           localStorage.setItem('user', JSON.stringify(currentUser));
         }
 
-        // Check for active in_progress attempt
+        // Only surface active in_progress attempt if it is newer than the latest submitted attempt
+        const latestSubmitted = (recent || []).find((a: any) => a.status === 'submitted' || a.status === 'completed');
         const inProgress = (recent || []).find((a: any) => a.status === 'in_progress');
-        if (inProgress) {
+        if (inProgress && (!latestSubmitted || new Date(inProgress.startedAt).getTime() > new Date(latestSubmitted.submittedAt || latestSubmitted.startedAt).getTime())) {
           setActiveAttempt(inProgress);
+        } else {
+          setActiveAttempt(null);
         }
       } catch (err) {
         console.error('Failed to load dashboard data:', err);

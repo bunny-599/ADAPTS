@@ -11,6 +11,7 @@ import { ILLMProvider } from './llm/llmProvider';
 import { GeminiProvider } from './llm/geminiProvider';
 import { validateResearchKnowledge } from '../validators/researchValidator';
 import { pool } from '../db';
+import { CacheService } from './cacheService';
 
 export interface StoredResearchSession {
   sessionId: number;
@@ -76,16 +77,35 @@ export class ResearchService {
 
   /**
    * Performs the web research pipeline:
-   * Query generation -> Web Search -> Deduplication -> Extraction -> Storage
+   * Cache Lookup -> Query generation -> Web Search -> Deduplication -> Extraction -> Storage
    */
   public async researchTopic(topicDTO: ResearchTopicDTO): Promise<ResearchResult> {
+    // 1. Fast Cache Memory Check for previously researched topic
+    const cacheKey = `research:${topicDTO.topic.trim().toLowerCase()}`;
+    const cachedResult = CacheService.get<ResearchResult>(cacheKey);
+    if (cachedResult) {
+      console.log(`[Cache Memory] HIT for topic: "${topicDTO.topic}". Serving grounded knowledge from cache.`);
+      return cachedResult;
+    }
+
     const queries = this.generateQueries(topicDTO);
     const rawSources: SearchResultItem[] = [];
 
-    // Execute queries with search provider
+    // Execute queries with search provider and query-level memory cache
     for (const query of queries) {
+      const queryKey = `websearch:${query.trim().toLowerCase()}`;
+      const cachedQueryResults = CacheService.get<SearchResultItem[]>(queryKey);
+      if (cachedQueryResults) {
+        console.log(`[Cache Memory] HIT for search query: "${query}"`);
+        rawSources.push(...cachedQueryResults);
+        continue;
+      }
+
       try {
         const results = await this.searchProvider.search(query, 2);
+        if (results && results.length > 0) {
+          CacheService.set(queryKey, results);
+        }
         rawSources.push(...results);
       } catch (searchErr) {
         console.warn(`Search failed for query "${query}":`, searchErr);
@@ -149,13 +169,15 @@ Return strictly a raw JSON array of objects:
 
           if (!sessionId) sessionId = ResearchService.nextSessionId++;
 
-          return {
+          const finalSynth: ResearchResult = {
             status: 'success',
             topic: topicDTO.topic,
             sessionId,
             sources: synthesizedSources,
             knowledge: validatedKnowledge,
           };
+          CacheService.set(cacheKey, finalSynth);
+          return finalSynth;
         }
       } catch (synthErr: any) {
         console.warn('[ResearchService] Knowledge synthesis fallback error:', synthErr.message);
@@ -204,13 +226,16 @@ Return strictly a raw JSON array of objects:
       knowledge: knowledgeItems,
     });
 
-    return {
+    const finalResult: ResearchResult = {
       status: 'success',
       topic: topicDTO.topic,
       sessionId,
       sources,
       knowledge: knowledgeItems,
     };
+
+    CacheService.set(cacheKey, finalResult);
+    return finalResult;
   }
 
   /**

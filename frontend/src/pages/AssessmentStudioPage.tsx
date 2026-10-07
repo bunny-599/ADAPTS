@@ -1201,6 +1201,28 @@ export const AssessmentStudioPage: React.FC<AssessmentStudioPageProps> = ({
                     <div style={{ display: 'flex', gap: '0.75rem' }}>
                       <button
                         type="button"
+                        onClick={() => {
+                          const aid = attemptId || 1;
+                          (onNavigate as any)('results', { attemptId: aid });
+                        }}
+                        style={{
+                          padding: '0.65rem 1.25rem',
+                          backgroundColor: '#2563eb',
+                          border: '1px solid #3b82f6',
+                          borderRadius: '6px',
+                          color: '#ffffff',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          boxShadow: '0 4px 12px rgba(37, 99, 235, 0.4)',
+                        }}
+                      >
+                        View Performance Analysis & Solutions →
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => onNavigate('dashboard')}
                         style={{
                           padding: '0.65rem 1.25rem',
@@ -1221,9 +1243,15 @@ export const AssessmentStudioPage: React.FC<AssessmentStudioPageProps> = ({
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
                     <div style={{ backgroundColor: '#141b2d', padding: '1.25rem', borderRadius: '8px' }}>
                       <div style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Continuous Accuracy</div>
-                      <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#34d399', marginTop: '0.4rem' }}>
-                        {analysisResult ? `${Math.round(analysisResult.overall.accuracy * 100)}%` : '85%'}
-                      </div>
+                      {(() => {
+                        const accPct = analysisResult ? Math.round(analysisResult.overall.accuracy * 100) : 85;
+                        const accColor = accPct < 30 ? '#ef4444' : accPct < 70 ? '#fbbf24' : '#10b981';
+                        return (
+                          <div style={{ fontSize: '1.8rem', fontWeight: 800, color: accColor, marginTop: '0.4rem' }}>
+                            {accPct}%
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div style={{ backgroundColor: '#141b2d', padding: '1.25rem', borderRadius: '8px' }}>
                       <div style={{ fontSize: '0.78rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Questions Answered</div>

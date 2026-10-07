@@ -146,6 +146,12 @@ export const AssessmentResultsView: React.FC<AssessmentResultsViewProps> = ({
     return '🐣 Beginner';
   };
 
+  const getScoreColor = (pct: number): string => {
+    if (pct < 30) return '#ef4444';
+    if (pct < 70) return '#fbbf24';
+    return '#10b981';
+  };
+
   return (
     <div style={{ backgroundColor: '#0b0f19', color: '#ffffff', fontFamily: 'Inter, system-ui, sans-serif', paddingBottom: '3rem' }}>
       {/* Top Navigation Bar with High Contrast Buttons */}
@@ -300,7 +306,7 @@ export const AssessmentResultsView: React.FC<AssessmentResultsViewProps> = ({
 
         {/* Card 5: Evaluated Accuracy */}
         <div className="glass-card" style={{ padding: '1.25rem', backgroundColor: '#111827', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '12px' }}>
-          <div style={{ fontSize: '2.2rem', fontWeight: 800, color: accuracyPct >= 70 ? '#34d399' : accuracyPct >= 50 ? '#fbbf24' : '#f87171', lineHeight: 1 }}>
+          <div style={{ fontSize: '2.2rem', fontWeight: 800, color: getScoreColor(accuracyPct), lineHeight: 1 }}>
             {accuracyPct}%
           </div>
           <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#ffffff', marginTop: '0.6rem' }}>
@@ -351,7 +357,7 @@ export const AssessmentResultsView: React.FC<AssessmentResultsViewProps> = ({
                 return (
                   <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.85rem 1.1rem', backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
                     <span style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc' }}>{subtopicName}</span>
-                    <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#34d399' }}>{acc}% ({count} evaluated)</span>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 800, color: getScoreColor(acc) }}>{acc}% ({count} evaluated)</span>
                   </div>
                 );
               })}
@@ -383,7 +389,7 @@ export const AssessmentResultsView: React.FC<AssessmentResultsViewProps> = ({
                 return (
                   <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.85rem 1.1rem', backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
                     <span style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc' }}>{subtopicName}</span>
-                    <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#fbbf24', backgroundColor: 'rgba(245, 158, 11, 0.15)', padding: '0.2rem 0.6rem', borderRadius: '4px' }}>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 800, color: getScoreColor(acc), backgroundColor: 'rgba(245, 158, 11, 0.15)', padding: '0.2rem 0.6rem', borderRadius: '4px' }}>
                       {acc}% ({count} evaluated)
                     </span>
                   </div>
@@ -432,7 +438,7 @@ export const AssessmentResultsView: React.FC<AssessmentResultsViewProps> = ({
                     <div style={{
                       width: `${scorePct}%`,
                       height: '100%',
-                      background: scorePct >= 70 ? 'linear-gradient(90deg, #10b981, #34d399)' : 'linear-gradient(90deg, #d97706, #fbbf24)',
+                      background: scorePct >= 70 ? 'linear-gradient(90deg, #10b981, #34d399)' : scorePct >= 30 ? 'linear-gradient(90deg, #d97706, #fbbf24)' : 'linear-gradient(90deg, #dc2626, #ef4444)',
                       borderRadius: '9999px',
                     }} />
                   </div>
@@ -462,10 +468,10 @@ export const AssessmentResultsView: React.FC<AssessmentResultsViewProps> = ({
                 <div key={level}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.4rem' }}>
                     <span style={{ fontWeight: 600, color: '#f8fafc', textTransform: 'capitalize' }}>{level}</span>
-                    <span style={{ fontWeight: 800, color: '#38bdf8' }}>{pct}% ({data.correct}/{data.evaluated})</span>
+                    <span style={{ fontWeight: 800, color: getScoreColor(pct) }}>{pct}% ({data.correct}/{data.evaluated})</span>
                   </div>
                   <div style={{ width: '100%', height: '8px', background: '#0f172a', borderRadius: '9999px', overflow: 'hidden' }}>
-                    <div style={{ width: `${pct}%`, height: '100%', background: '#2563eb', borderRadius: '9999px' }} />
+                    <div style={{ width: `${pct}%`, height: '100%', background: pct >= 70 ? '#10b981' : pct >= 30 ? '#f59e0b' : '#ef4444', borderRadius: '9999px' }} />
                   </div>
                 </div>
               );
@@ -485,16 +491,143 @@ export const AssessmentResultsView: React.FC<AssessmentResultsViewProps> = ({
                 <div key={subtopic}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.4rem' }}>
                     <span style={{ fontWeight: 600, color: '#f8fafc' }}>{subtopic}</span>
-                    <span style={{ fontWeight: 800, color: pct >= 70 ? '#34d399' : '#fbbf24' }}>{pct}% ({data.correct}/{data.evaluated})</span>
+                    <span style={{ fontWeight: 800, color: getScoreColor(pct) }}>{pct}% ({data.correct}/{data.evaluated})</span>
                   </div>
                   <div style={{ width: '100%', height: '8px', background: '#0f172a', borderRadius: '9999px', overflow: 'hidden' }}>
-                    <div style={{ width: `${pct}%`, height: '100%', background: pct >= 70 ? '#10b981' : '#f59e0b', borderRadius: '9999px' }} />
+                    <div style={{ width: `${pct}%`, height: '100%', background: pct >= 70 ? '#10b981' : pct >= 30 ? '#f59e0b' : '#ef4444', borderRadius: '9999px' }} />
                   </div>
                 </div>
               );
             })}
           </div>
         </div>
+      </div>
+
+      {/* Question-by-Question Exam Written Paper & Solutions Section */}
+      <div className="glass-card" style={{ padding: '2rem', marginBottom: '2.5rem', backgroundColor: '#111827', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '1rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1.3rem', fontWeight: 700, color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              📝 Exam Paper & Question Solutions
+            </h3>
+            <p style={{ fontSize: '0.88rem', color: '#94a3b8', margin: '0.3rem 0 0 0' }}>
+              Complete review showing your answered responses, correct answers, and grading explanations.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10b981', color: '#34d399', padding: '0.3rem 0.75rem', borderRadius: '6px', fontSize: '0.82rem', fontWeight: 700 }}>
+              {overall.correctAnswers} Correct
+            </span>
+            <span style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', color: '#f87171', padding: '0.3rem 0.75rem', borderRadius: '6px', fontSize: '0.82rem', fontWeight: 700 }}>
+              {overall.incorrectAnswers} Incorrect
+            </span>
+          </div>
+        </div>
+
+        {(!analysis.evaluatedResponses || analysis.evaluatedResponses.length === 0) ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+            No individual response records found for this assessment attempt.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {analysis.evaluatedResponses.map((item, idx) => {
+              const qNum = item.order || idx + 1;
+              const isCorrect = item.evaluationStatus === 'correct' || (item.score !== null && item.score >= 0.7);
+              const isUnanswered = item.evaluationStatus === 'unanswered' || !item.answer;
+              const statusColor = isCorrect ? '#10b981' : isUnanswered ? '#fbbf24' : '#ef4444';
+              const statusBg = isCorrect ? 'rgba(16, 185, 129, 0.12)' : isUnanswered ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)';
+              const statusBorder = isCorrect ? 'rgba(16, 185, 129, 0.3)' : isUnanswered ? 'rgba(245, 158, 11, 0.3)' : 'rgba(239, 68, 68, 0.3)';
+              const statusLabel = isCorrect ? '✓ Correct (1.0 / 1.0)' : isUnanswered ? '⚠️ Unanswered (0.0 / 1.0)' : '✗ Incorrect (0.0 / 1.0)';
+
+              return (
+                <div
+                  key={item.questionId || idx}
+                  style={{
+                    backgroundColor: '#0f172a',
+                    border: `1px solid ${statusBorder}`,
+                    borderRadius: '10px',
+                    padding: '1.5rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#ffffff', backgroundColor: '#1e293b', padding: '0.25rem 0.65rem', borderRadius: '6px' }}>
+                        Question #{qNum}
+                      </span>
+                      {item.subtopic && (
+                        <span style={{ fontSize: '0.78rem', color: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.25)', padding: '0.2rem 0.55rem', borderRadius: '4px', fontWeight: 600 }}>
+                          {item.subtopic}
+                        </span>
+                      )}
+                      {item.cognitiveLevel && (
+                        <span style={{ fontSize: '0.78rem', color: '#cbd5e1', backgroundColor: '#1e293b', padding: '0.2rem 0.55rem', borderRadius: '4px', textTransform: 'capitalize' }}>
+                          {item.cognitiveLevel}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{
+                      backgroundColor: statusBg,
+                      border: `1px solid ${statusColor}`,
+                      color: statusColor,
+                      padding: '0.3rem 0.75rem',
+                      borderRadius: '6px',
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                    }}>
+                      {statusLabel}
+                    </div>
+                  </div>
+
+                  {/* Question Text */}
+                  <div style={{ fontSize: '1.02rem', fontWeight: 600, color: '#f8fafc', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+                    {item.questionText || `Question #${qNum}`}
+                  </div>
+
+                  {/* Comparison: Your Answer vs Expected Answer */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    {/* User's Answer */}
+                    <div style={{
+                      backgroundColor: isCorrect ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                      border: `1px solid ${isCorrect ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                      borderRadius: '8px',
+                      padding: '0.85rem 1rem',
+                    }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: isCorrect ? '#34d399' : '#f87171', marginBottom: '0.35rem' }}>
+                        Your Written Answer
+                      </div>
+                      <div style={{ fontSize: '0.92rem', color: item.answer ? '#ffffff' : '#94a3b8', fontStyle: item.answer ? 'normal' : 'italic' }}>
+                        {item.answer ? item.answer : '(No response provided)'}
+                      </div>
+                    </div>
+
+                    {/* Expected Answer */}
+                    <div style={{
+                      backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      borderRadius: '8px',
+                      padding: '0.85rem 1rem',
+                    }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#34d399', marginBottom: '0.35rem' }}>
+                        Expected Correct Answer
+                      </div>
+                      <div style={{ fontSize: '0.92rem', color: '#ffffff', fontWeight: 600 }}>
+                        {item.expectedAnswer || 'Authoritative Specification Answer'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Detailed Explanation / Reasoning */}
+                  {(item.evaluationDetails?.reasoning || (item as any).explanation) && (
+                    <div style={{ backgroundColor: '#1e293b', borderRadius: '8px', padding: '0.75rem 1rem', fontSize: '0.88rem', color: '#cbd5e1', lineHeight: 1.5, borderLeft: `3px solid ${statusColor}` }}>
+                      <strong style={{ color: '#ffffff' }}>Explanation: </strong>
+                      {item.evaluationDetails?.reasoning || (item as any).explanation}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Action Footer */}

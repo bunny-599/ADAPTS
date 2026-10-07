@@ -24,11 +24,15 @@ export interface IAnswerEvaluator {
 export class DeterministicAnswerEvaluator implements IAnswerEvaluator {
   public evaluate(question: Question, answer: string | null): QuestionEvaluationResult {
     const isUnanswered = answer === null || answer === undefined || answer.trim() === '';
+    const qText = question.question || (question as any).text || '';
+    const expAns = question.correctAnswer || (question as any).expectedAnswer || '';
 
     if (isUnanswered) {
       return {
         questionId: question.id!,
+        questionText: qText,
         answer: null,
+        expectedAnswer: expAns,
         evaluationStatus: 'unanswered',
         score: 0.0,
         subtopic: question.subtopic,
@@ -46,7 +50,9 @@ export class DeterministicAnswerEvaluator implements IAnswerEvaluator {
 
       return {
         questionId: question.id!,
+        questionText: qText,
         answer: trimmedAnswer,
+        expectedAnswer: expAns,
         evaluationStatus: isCorrect ? 'correct' : 'incorrect',
         score: isCorrect ? 1.0 : 0.0,
         subtopic: question.subtopic,
@@ -60,7 +66,9 @@ export class DeterministicAnswerEvaluator implements IAnswerEvaluator {
     // For non-MCQ free text: do not fabricate correctness
     return {
       questionId: question.id!,
+      questionText: qText,
       answer: trimmedAnswer,
+      expectedAnswer: expAns,
       evaluationStatus: 'not_auto_evaluable',
       score: null,
       subtopic: question.subtopic,

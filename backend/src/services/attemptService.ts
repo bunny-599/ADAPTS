@@ -405,9 +405,27 @@ export class AttemptService {
            SET status = 'submitted', submitted_at = CURRENT_TIMESTAMP,
                user_id = COALESCE(user_id, $2)
            WHERE id = $1
-           RETURNING submitted_at as "submittedAt";`,
+           RETURNING submitted_at as "submittedAt", user_id as "userId";`,
           [attemptId, userId || null]
         );
+
+        const effectiveUserId = userId || updateRes.rows[0]?.userId || null;
+        if (effectiveUserId) {
+          // Close older abandoned in_progress attempts for this user so they don't linger
+          await client.query(
+            `UPDATE assessment_attempts
+             SET status = 'abandoned'
+             WHERE user_id = $1 AND status = 'in_progress' AND id != $2;`,
+            [effectiveUserId, attemptId]
+          );
+        } else {
+          await client.query(
+            `UPDATE assessment_attempts
+             SET status = 'abandoned'
+             WHERE status = 'in_progress' AND id < $1;`,
+            [attemptId]
+          );
+        }
 
         await client.query('COMMIT');
 
