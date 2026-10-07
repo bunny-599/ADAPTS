@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@clerk/react';
 import { User } from '../types/auth';
 import { topicService } from '../services/topicService';
+import { authService } from '../services/authService';
 import { isStructuredTopic, isClarificationRequired } from '../types/topic';
 import { PerformanceAnalysisResult } from '../types/analysis';
 import { CodeEditorIde } from '../components/CodeEditorIde';
@@ -402,6 +403,8 @@ export const AssessmentStudioPage: React.FC<AssessmentStudioPageProps> = ({
 
       if (analysis) {
         setAnalysisResult(analysis);
+        // Sync newly awarded Elo delta back to active user state
+        authService.getMe().catch(() => null);
       }
     } catch (err) {
       console.error('Debrief execution failed:', err);

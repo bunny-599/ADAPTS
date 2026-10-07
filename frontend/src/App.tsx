@@ -78,14 +78,19 @@ export const App: React.FC = () => {
   const [authTab, setAuthTab] = useState<'login' | 'register'>('register');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  // Sync Clerk Token to authService header provider
+  // Sync Clerk Token to authService header provider and load user profile (including live Elo rating)
   useEffect(() => {
     if (isSignedIn) {
-      getToken().then((token) => {
-        if (token) {
-          authService.setToken(token);
-        }
-      }).catch(() => null);
+      getToken()
+        .then((token) => {
+          if (token) {
+            authService.setToken(token);
+            authService.getMe().then((user) => {
+              if (user) setCurrentUser(user);
+            }).catch(() => null);
+          }
+        })
+        .catch(() => null);
     }
   }, [isSignedIn, getToken]);
 
