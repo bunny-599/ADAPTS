@@ -250,9 +250,14 @@ export const PerformanceAnalyticsPage: React.FC<PerformanceAnalyticsPageProps> =
                         border: '1px solid #1f293d',
                       }}>
                         <div>
-                          <span style={{ fontWeight: 600, color: '#ffffff', fontSize: '0.95rem' }}>
-                            {item.topicName || item.topic || `Assessment #${item.attemptId || item.id}`}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                            <span style={{ fontWeight: 600, color: '#ffffff', fontSize: '0.95rem' }}>
+                              {item.topicName || item.topic || `Assessment #${item.attemptId || item.id}`}
+                            </span>
+                            <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.25)', padding: '0.1rem 0.45rem', borderRadius: '4px', fontWeight: 600 }}>
+                              Attempt #{item.attemptId || item.id}
+                            </span>
+                          </div>
                           <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.25rem' }}>
                             Evaluated on {dateStr}
                           </div>

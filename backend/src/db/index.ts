@@ -475,6 +475,18 @@ export const initDatabase = async (): Promise<boolean> => {
           UPDATE assessment_attempts
           SET status = 'submitted', submitted_at = COALESCE(submitted_at, CURRENT_TIMESTAMP)
           WHERE status = 'in_progress' AND id IN (SELECT DISTINCT attempt_id FROM assessment_responses);
+
+          -- Mark any stale or empty in_progress attempts as abandoned
+          UPDATE assessment_attempts
+          SET status = 'abandoned'
+          WHERE status = 'in_progress'
+            AND (started_at < NOW() - INTERVAL '15 minutes' OR id NOT IN (SELECT DISTINCT attempt_id FROM assessment_responses));
+
+          -- Mark any timed_out or in_progress attempts without any recorded responses as abandoned
+          UPDATE assessment_attempts
+          SET status = 'abandoned'
+          WHERE status IN ('timed_out', 'in_progress')
+            AND id NOT IN (SELECT DISTINCT attempt_id FROM assessment_responses);
         `);
       } catch (pass4Error: any) {
         console.warn('[Database Init] Migration Pass 4 notice:', pass4Error.message);

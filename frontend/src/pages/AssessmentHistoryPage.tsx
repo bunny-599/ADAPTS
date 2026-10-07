@@ -23,7 +23,13 @@ export const AssessmentHistoryPage: React.FC<AssessmentHistoryPageProps> = ({
       setLoading(true);
       try {
         const recent = await topicService.getRecentAssessments().catch(() => []);
-        setHistory(recent || []);
+        const valid = (recent || []).filter((a: any) => {
+          const status = (a.status || '').toLowerCase();
+          if (status === 'abandoned') return false;
+          if (status === 'timed_out' && !a.accuracy && !a.overallScore) return false;
+          return true;
+        });
+        setHistory(valid);
       } catch (err) {
         console.error('Error loading assessment history:', err);
       } finally {
@@ -81,8 +87,17 @@ export const AssessmentHistoryPage: React.FC<AssessmentHistoryPageProps> = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {history.map((item: any) => {
                 const isCompleted = item.status === 'completed' || item.status === 'submitted';
-                const scoreDisplay = item.accuracy !== undefined ? `${Math.round(item.accuracy * 100)}%` : isCompleted ? 'Evaluated' : 'In Progress';
-                const dateStr = item.created_at ? new Date(item.created_at).toLocaleString() : 'Recent';
+                const rawAcc = item.accuracy ?? item.overallScore;
+                const accPct = typeof rawAcc === 'number'
+                  ? Math.round(rawAcc * 100)
+                  : typeof rawAcc === 'string' && !isNaN(parseFloat(rawAcc))
+                  ? Math.round(parseFloat(rawAcc) * 100)
+                  : null;
+                const scoreDisplay = accPct !== null ? `${accPct}%` : isCompleted ? 'Evaluated' : 'In Progress';
+                const scoreColor = accPct !== null ? (accPct < 30 ? '#ef4444' : accPct < 70 ? '#fbbf24' : '#10b981') : (isCompleted ? '#10b981' : '#fbbf24');
+                const dateStr = item.started_at || item.startedAt || item.created_at
+                  ? new Date(item.started_at || item.startedAt || item.created_at).toLocaleString()
+                  : 'Recent';
 
                 return (
                   <div
@@ -113,7 +128,7 @@ export const AssessmentHistoryPage: React.FC<AssessmentHistoryPageProps> = ({
                       </div>
                       <div>
                         <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#ffffff', margin: 0, marginBottom: '0.25rem' }}>
-                          {item.topic || item.assessment_name || `Attempt #${item.id}`}
+                          {item.topicTitle || item.topic || item.assessment_name || `Assessment #${item.id}`}
                         </h4>
                         <div style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
                           Attempt #{item.id} • Started {dateStr}
@@ -123,15 +138,9 @@ export const AssessmentHistoryPage: React.FC<AssessmentHistoryPageProps> = ({
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                       <div style={{ textAlign: 'right' }}>
-                        {(() => {
-                          const accPct = item.accuracy !== undefined ? Math.round(item.accuracy * 100) : null;
-                          const scoreColor = accPct !== null ? (accPct < 30 ? '#ef4444' : accPct < 70 ? '#fbbf24' : '#10b981') : (isCompleted ? '#10b981' : '#fbbf24');
-                          return (
-                            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: scoreColor }}>
-                              {scoreDisplay}
-                            </div>
-                          );
-                        })()}
+                        <div style={{ fontSize: '1.1rem', fontWeight: 800, color: scoreColor }}>
+                          {scoreDisplay}
+                        </div>
                         <div style={{ fontSize: '0.78rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>
                           {item.status}
                         </div>

@@ -44,16 +44,85 @@ export const AssessmentsPage: React.FC<AssessmentsPageProps> = ({
     };
   }, [currentUser]);
 
-  const filteredAssessments = assessments.filter((a) => {
-    const status = (a.status || 'in_progress').toLowerCase();
-    const isCompleted = status === 'submitted' || status === 'completed';
+  // Filter out abandoned or expired ghost attempts
+  const validAssessments = assessments.filter((a) => {
+    const status = (a.status || '').toLowerCase();
+    if (status === 'abandoned') return false;
+    if (status === 'timed_out' && !a.accuracy && !a.overallScore) return false;
+    if (status === 'in_progress') {
+      const started = a.startedAt ? new Date(a.startedAt).getTime() : 0;
+      if (Date.now() - started > 15 * 60 * 1000) return false;
+    }
+    return true;
+  });
+
+  // Group by topic to eliminate duplicate reports with identical names
+  const groupedMap = new Map<string, {
+    key: string;
+    topicTitle: string;
+    latestAttempt: any;
+    bestAccuracy: number | null;
+    totalAttempts: number;
+    hasInProgress: boolean;
+    isCompleted: boolean;
+    allAttempts: any[];
+  }>();
+
+  for (const item of validAssessments) {
+    const topicKey = (item.topicTitle || 'General Computer Science').trim().toLowerCase();
+    const isCompleted = item.status === 'submitted' || item.status === 'completed';
+    const rawAcc = item.accuracy ?? item.overallScore;
+    const accuracy = typeof rawAcc === 'number'
+      ? Math.round(rawAcc * 100)
+      : typeof rawAcc === 'string' && !isNaN(parseFloat(rawAcc))
+      ? Math.round(parseFloat(rawAcc) * 100)
+      : null;
+
+    if (!groupedMap.has(topicKey)) {
+      groupedMap.set(topicKey, {
+        key: topicKey,
+        topicTitle: item.topicTitle || 'General Computer Science',
+        latestAttempt: item,
+        bestAccuracy: accuracy,
+        totalAttempts: 1,
+        hasInProgress: item.status === 'in_progress',
+        isCompleted: isCompleted,
+        allAttempts: [item],
+      });
+    } else {
+      const existing = groupedMap.get(topicKey)!;
+      existing.totalAttempts += 1;
+      existing.allAttempts.push(item);
+      if (accuracy !== null) {
+        if (existing.bestAccuracy === null || accuracy > existing.bestAccuracy) {
+          existing.bestAccuracy = accuracy;
+        }
+      }
+      if (item.status === 'in_progress') {
+        existing.hasInProgress = true;
+      }
+      if (isCompleted) {
+        existing.isCompleted = true;
+      }
+      const currentStarted = item.startedAt ? new Date(item.startedAt).getTime() : 0;
+      const latestStarted = existing.latestAttempt.startedAt ? new Date(existing.latestAttempt.startedAt).getTime() : 0;
+      if (currentStarted > latestStarted) {
+        existing.latestAttempt = item;
+      }
+    }
+  }
+
+  const groupedAssessments = Array.from(groupedMap.values());
+
+  const filteredAssessments = groupedAssessments.filter((group) => {
     const matchesStatus =
       statusFilter === 'all' ||
-      (statusFilter === 'in_progress' && status === 'in_progress') ||
-      (statusFilter === 'completed' && isCompleted);
+      (statusFilter === 'in_progress' && group.hasInProgress) ||
+      (statusFilter === 'completed' && group.isCompleted);
 
-    const title = (a.topicTitle || 'Computer Science Assessment').toLowerCase();
-    const matchesSearch = searchFilter === '' || title.includes(searchFilter.toLowerCase());
+    const matchesSearch =
+      searchFilter === '' ||
+      group.topicTitle.toLowerCase().includes(searchFilter.toLowerCase());
 
     return matchesStatus && matchesSearch;
   });
@@ -80,9 +149,9 @@ export const AssessmentsPage: React.FC<AssessmentsPageProps> = ({
           {/* Status Tabs */}
           <div style={{ display: 'flex', gap: '0.65rem' }}>
             {[
-              { id: 'all', label: `All (${assessments.length})` },
-              { id: 'in_progress', label: `In Progress (${assessments.filter(a => a.status === 'in_progress').length})` },
-              { id: 'completed', label: `Completed (${assessments.filter(a => a.status === 'submitted' || a.status === 'completed').length})` },
+              { id: 'all', label: `All Topics (${groupedAssessments.length})` },
+              { id: 'in_progress', label: `In Progress (${groupedAssessments.filter(g => g.hasInProgress).length})` },
+              { id: 'completed', label: `Completed (${groupedAssessments.filter(g => g.isCompleted).length})` },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -149,7 +218,7 @@ export const AssessmentsPage: React.FC<AssessmentsPageProps> = ({
             </button>
           </div>
         ) : filteredAssessments.length === 0 ? (
-          /* Elegant Empty State (Section 39 & 56) */
+          /* Elegant Empty State */
           <div className="glass-card" style={{ padding: '4.5rem 2rem', textAlign: 'center', backgroundColor: '#0c101d', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px' }}>
             <div style={{
               width: '56px',
@@ -166,10 +235,10 @@ export const AssessmentsPage: React.FC<AssessmentsPageProps> = ({
               📋
             </div>
             <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#ffffff', marginBottom: '0.5rem' }}>
-              {assessments.length === 0 ? 'No assessments yet' : 'No matching assessments'}
+              {groupedAssessments.length === 0 ? 'No assessments yet' : 'No matching assessments'}
             </h2>
             <p style={{ color: '#94a3b8', fontSize: '0.92rem', maxWidth: '440px', margin: '0 auto 2rem auto', lineHeight: 1.5 }}>
-              {assessments.length === 0
+              {groupedAssessments.length === 0
                 ? 'Start your first assessment to prove what you know and begin building your verifiable skill profile.'
                 : 'No assessments match the current filter or search criteria.'}
             </p>
@@ -190,17 +259,19 @@ export const AssessmentsPage: React.FC<AssessmentsPageProps> = ({
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem' }}>
-            {filteredAssessments.map((item) => {
+            {filteredAssessments.map((group) => {
+              const item = group.latestAttempt;
               const isCompleted = item.status === 'submitted' || item.status === 'completed';
-              const accuracy = typeof item.accuracy === 'number'
-                ? Math.round(item.accuracy * 100)
-                : typeof item.overallScore === 'number'
-                ? Math.round(item.overallScore * 100)
-                : null;
+              const rawAcc = item.accuracy ?? item.overallScore;
+              const accuracy = typeof rawAcc === 'number'
+                ? Math.round(rawAcc * 100)
+                : typeof rawAcc === 'string' && !isNaN(parseFloat(rawAcc))
+                ? Math.round(parseFloat(rawAcc) * 100)
+                : group.bestAccuracy;
 
               return (
                 <div
-                  key={item.id}
+                  key={group.key}
                   className="glass-card"
                   style={{
                     padding: '1.75rem',
@@ -225,7 +296,7 @@ export const AssessmentsPage: React.FC<AssessmentsPageProps> = ({
                         color: isCompleted ? '#34d399' : '#38bdf8',
                         border: isCompleted ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(56, 189, 248, 0.3)',
                       }}>
-                        {isCompleted ? 'Completed' : 'In Progress'}
+                        {isCompleted ? `Completed • Attempt #${item.id}` : 'In Progress'}
                       </span>
 
                       {accuracy !== null && (
@@ -236,21 +307,28 @@ export const AssessmentsPage: React.FC<AssessmentsPageProps> = ({
                     </div>
 
                     <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#ffffff', margin: '0 0 0.5rem 0' }}>
-                      {item.topicTitle || 'Computer Science Assessment'}
+                      {group.topicTitle}
                     </h3>
 
-                    <div style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '1.25rem' }}>
-                      {item.startedAt ? new Date(item.startedAt).toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      }) : 'Recent Attempt'}
+                    <div style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <span>
+                        {item.startedAt ? new Date(item.startedAt).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        }) : 'Recent Attempt'}
+                      </span>
+                      {group.totalAttempts > 1 && (
+                        <span style={{ color: '#38bdf8', fontWeight: 600 }}>
+                          Attempt #{item.id} (Latest) • {group.totalAttempts} total attempts
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '1rem' }}>
+                  <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                     <button
                       type="button"
                       className={isCompleted ? 'btn-secondary' : 'btn-primary'}
@@ -265,6 +343,25 @@ export const AssessmentsPage: React.FC<AssessmentsPageProps> = ({
                     >
                       {isCompleted ? 'View Performance Analysis →' : 'Resume Assessment →'}
                     </button>
+
+                    {group.totalAttempts > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => onNavigate('history')}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#94a3b8',
+                          fontSize: '0.78rem',
+                          cursor: 'pointer',
+                          padding: '0.2rem',
+                          textAlign: 'center',
+                          textDecoration: 'underline',
+                        }}
+                      >
+                        View all {group.totalAttempts} attempts in history →
+                      </button>
+                    )}
                   </div>
                 </div>
               );

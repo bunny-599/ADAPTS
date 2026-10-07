@@ -36,7 +36,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           topicService.getUserPerformance().catch(() => null),
         ]);
 
-        setRecentAssessments(recent || []);
+        const validRecent = (recent || []).filter((a: any) => {
+          const status = (a.status || '').toLowerCase();
+          if (status === 'abandoned') return false;
+          if (status === 'timed_out' && !a.accuracy && !a.overallScore) return false;
+          return true;
+        });
+
+        setRecentAssessments(validRecent);
         setPerformanceData(perf);
 
         if (perf && typeof perf.eloScore === 'number' && currentUser) {
@@ -44,9 +51,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           localStorage.setItem('user', JSON.stringify(currentUser));
         }
 
-        // Only surface active in_progress attempt if it is newer than the latest submitted attempt
-        const latestSubmitted = (recent || []).find((a: any) => a.status === 'submitted' || a.status === 'completed');
-        const inProgress = (recent || []).find((a: any) => a.status === 'in_progress');
+        // Only surface active in_progress attempt if it is newer than the latest submitted attempt AND started within 15 minutes
+        const inProgress = validRecent.find((a: any) => {
+          if (a.status !== 'in_progress') return false;
+          const started = a.startedAt ? new Date(a.startedAt).getTime() : 0;
+          return Date.now() - started < 15 * 60 * 1000;
+        });
+
+        const latestSubmitted = validRecent.find((a: any) => a.status === 'submitted' || a.status === 'completed');
         if (inProgress && (!latestSubmitted || new Date(inProgress.startedAt).getTime() > new Date(latestSubmitted.submittedAt || latestSubmitted.startedAt).getTime())) {
           setActiveAttempt(inProgress);
         } else {
@@ -123,17 +135,35 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 <span style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>Attempt #{activeAttempt.id}</span>
               </div>
               <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#ffffff', fontFamily: 'Outfit, sans-serif' }}>
-                {activeAttempt.topic || 'Adaptive CS Assessment'}
+                {activeAttempt.topicTitle || activeAttempt.topic || 'Adaptive CS Assessment'}
               </h3>
             </div>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => onNavigate('take_assessment')}
-              style={{ padding: '0.8rem 1.75rem', fontSize: '0.95rem' }}
-            >
-              Resume Assessment →
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => onNavigate('take_assessment')}
+                style={{ padding: '0.8rem 1.75rem', fontSize: '0.95rem' }}
+              >
+                Resume Assessment →
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveAttempt(null)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  color: '#94a3b8',
+                  padding: '0.8rem 1rem',
+                  borderRadius: '8px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                ✕ Dismiss
+              </button>
+            </div>
           </div>
         )}
 
@@ -476,8 +506,16 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                 {recentAssessments.slice(0, 5).map((item: any) => {
                   const isCompleted = item.status === 'completed' || item.status === 'submitted';
-                  const scoreDisplay = item.accuracy !== undefined ? `${Math.round(item.accuracy * 100)}% Accuracy` : isCompleted ? 'Evaluated' : 'In Progress';
-                  const dateStr = item.created_at ? new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent';
+                  const rawAcc = item.accuracy ?? item.overallScore;
+                  const accuracy = typeof rawAcc === 'number'
+                    ? Math.round(rawAcc * 100)
+                    : typeof rawAcc === 'string' && !isNaN(parseFloat(rawAcc))
+                    ? Math.round(parseFloat(rawAcc) * 100)
+                    : null;
+                  const scoreDisplay = accuracy !== null ? `${accuracy}% Accuracy` : isCompleted ? 'Evaluated' : 'In Progress';
+                  const dateStr = item.started_at || item.startedAt
+                    ? new Date(item.started_at || item.startedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+                    : 'Recent';
 
                   return (
                     <div
@@ -515,10 +553,21 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                           ⚡
                         </div>
                         <div>
-                          <h4 style={{ fontSize: '1.02rem', fontWeight: 700, color: '#ffffff', margin: 0, marginBottom: '0.2rem' }}>
-                            {item.topic || item.assessment_name || `Assessment #${item.id}`}
-                          </h4>
-                          <span style={{ fontSize: '0.85rem', color: isCompleted ? '#34d399' : '#fbbf24', fontWeight: 600 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', marginBottom: '0.2rem' }}>
+                            <h4 style={{ fontSize: '1.02rem', fontWeight: 700, color: '#ffffff', margin: 0 }}>
+                              {item.topicTitle || item.topic || item.assessment_name || 'Adaptive CS Assessment'}
+                            </h4>
+                            <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.25)', padding: '0.1rem 0.45rem', borderRadius: '4px', fontWeight: 600 }}>
+                              Attempt #{item.id}
+                            </span>
+                          </div>
+                          <span style={{
+                            fontSize: '0.85rem',
+                            color: isCompleted
+                              ? (accuracy !== null && accuracy >= 70 ? '#34d399' : accuracy !== null && accuracy >= 30 ? '#fbbf24' : '#ef4444')
+                              : '#38bdf8',
+                            fontWeight: 600,
+                          }}>
                             {isCompleted ? `Completed • ${scoreDisplay}` : 'In Progress'}
                           </span>
                         </div>

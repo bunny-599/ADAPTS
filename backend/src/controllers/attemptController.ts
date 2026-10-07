@@ -92,6 +92,14 @@ export class AttemptController {
       console.log(`🕒 Loading recent assessments for user #${userId}`);
 
       if (isDatabaseAvailable()) {
+        // Automatically expire stale in-progress or empty timed-out attempts
+        await pool.query(
+          `UPDATE assessment_attempts
+           SET status = 'abandoned'
+           WHERE (status = 'in_progress' AND (started_at < NOW() - INTERVAL '15 minutes' OR id NOT IN (SELECT DISTINCT attempt_id FROM assessment_responses)))
+              OR (status = 'timed_out' AND id NOT IN (SELECT DISTINCT attempt_id FROM assessment_responses));`
+        ).catch((cleanErr: any) => console.warn('⚠️ Non-critical attempt auto-expiry warning:', cleanErr.message));
+
         const queryRes = await pool.query(
           `SELECT a.id, a.assessment_id as "assessmentId", a.status,
                   a.started_at as "startedAt", a.submitted_at as "submittedAt",
@@ -102,6 +110,8 @@ export class AttemptController {
            LEFT JOIN topics t ON ass.topic_id = t.id
            LEFT JOIN performance_analyses p ON p.attempt_id = a.id
            WHERE (a.user_id = $1 OR a.user_id IS NULL OR $1 = 1)
+             AND a.status NOT IN ('abandoned')
+             AND NOT (a.status = 'timed_out' AND p.accuracy IS NULL)
            ORDER BY a.started_at DESC
            LIMIT 20;`,
           [userId]

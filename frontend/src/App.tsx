@@ -224,23 +224,37 @@ export const App: React.FC = () => {
           targetQuestionCount: 5,
         }).catch(() => null);
 
+        let activeCreatedAttemptId: number | null = null;
+        let activeCreatedStartedAt: string | null = null;
+
         if (optimized && optimized.questions && optimized.questions.length > 0) {
           setRealQuestions(optimized.questions);
 
           if (optimized.assessmentId) {
             const startRes = await topicService.startAttempt(optimized.assessmentId).catch(() => null);
             if (startRes?.attemptId) {
-              setAttemptId(startRes.attemptId);
-              setAttemptStartedAt(new Date().toISOString());
+              activeCreatedAttemptId = startRes.attemptId;
+              activeCreatedStartedAt = new Date().toISOString();
             }
           }
         } else {
           setRealQuestions(validPool);
         }
-      }
 
-      // Ensure attempt ID is initialized if not already created
-      if (!attemptId) {
+        // Ensure attempt ID is initialized if not already created
+        if (!activeCreatedAttemptId) {
+          const fallbackAttempt = await topicService.startAttempt(1).catch(() => null);
+          if (fallbackAttempt?.attemptId) {
+            activeCreatedAttemptId = fallbackAttempt.attemptId;
+            activeCreatedStartedAt = new Date().toISOString();
+          }
+        }
+
+        if (activeCreatedAttemptId) {
+          setAttemptId(activeCreatedAttemptId);
+          setAttemptStartedAt(activeCreatedStartedAt || new Date().toISOString());
+        }
+      } else {
         const fallbackAttempt = await topicService.startAttempt(1).catch(() => null);
         if (fallbackAttempt?.attemptId) {
           setAttemptId(fallbackAttempt.attemptId);

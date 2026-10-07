@@ -236,7 +236,7 @@ export const AssessmentResultsView: React.FC<AssessmentResultsViewProps> = ({
         </div>
 
         <h1 style={{ fontSize: '2.1rem', fontWeight: 800, color: '#ffffff', margin: 0, marginBottom: '0.5rem', letterSpacing: '-0.02em' }}>
-          Assessment Competency Report
+          {analysis.topicName ? `${analysis.topicName} • ` : ''}Attempt #{attemptId || analysis.attemptId} Competency Report
         </h1>
         <p style={{ fontSize: '0.95rem', color: '#cbd5e1', margin: 0, lineHeight: 1.5 }}>
           Evaluated across <strong style={{ color: '#ffffff' }}>{overall.totalQuestions} questions</strong> ({overall.evaluatedQuestions} auto-graded). Completed in <strong style={{ color: '#ffffff' }}>{Math.floor(overall.durationSeconds / 60)}m {overall.durationSeconds % 60}s</strong>.
