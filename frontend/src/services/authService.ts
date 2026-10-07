@@ -1,6 +1,6 @@
 import { User, AuthResponse, LoginPayload, RegisterPayload } from '../types/auth';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://adapts-backend.onrender.com';
 const TOKEN_KEY = 'adapts_auth_token';
 const USER_KEY = 'adapts_auth_user';
 

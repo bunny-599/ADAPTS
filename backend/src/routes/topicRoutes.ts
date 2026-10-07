@@ -32,7 +32,9 @@ router.get('/auth/activity', optionalToken, AuthController.getActivityLogs);
 // Real User Notifications endpoints
 router.get('/notifications', optionalToken, NotificationController.getNotifications);
 router.patch('/notifications/:id/read', optionalToken, NotificationController.markRead);
+router.put('/notifications/:id/read', optionalToken, NotificationController.markRead);
 router.post('/notifications/read-all', optionalToken, NotificationController.markAllRead);
+router.put('/notifications/read-all', optionalToken, NotificationController.markAllRead);
 
 // Topic understanding endpoints
 router.post('/topics/analyze', aiOperationLimiter, TopicController.analyze);
@@ -62,6 +64,7 @@ router.post('/assessments/:assessmentId/start', optionalToken, AttemptController
 // Attempt & response persistence endpoints
 router.get('/attempts', optionalToken, AttemptController.getRecentAttempts);
 router.get('/attempts/:attemptId', optionalToken, AttemptController.getAttempt);
+router.get('/attempts/:attemptId/responses', optionalToken, AttemptController.getAttempt);
 router.post('/attempts/:attemptId/responses', AttemptController.saveResponse);
 router.patch('/attempts/:attemptId/responses', AttemptController.saveResponse);
 router.put('/attempts/:attemptId/responses/:questionId', AttemptController.saveResponse);

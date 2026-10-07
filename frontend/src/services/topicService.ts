@@ -1,7 +1,7 @@
 import { Topic, CreateTopicPayload, TopicAnalysisResult } from '../types/topic';
 import { authService } from './authService';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://adapts-backend.onrender.com';
 
 function createHeaders(extra: Record<string, string> = {}): Record<string, string> {
   return {
