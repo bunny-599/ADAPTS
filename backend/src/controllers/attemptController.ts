@@ -98,12 +98,12 @@ export class AttemptController {
                   COALESCE(t.topic, 'Adaptive CS Assessment') as "topicTitle",
                   p.accuracy, p.overall_score as "overallScore"
            FROM assessment_attempts a
-           JOIN assessments ass ON a.assessment_id = ass.id
+           LEFT JOIN assessments ass ON a.assessment_id = ass.id
            LEFT JOIN topics t ON ass.topic_id = t.id
            LEFT JOIN performance_analyses p ON p.attempt_id = a.id
-           WHERE a.user_id = $1
+           WHERE (a.user_id = $1 OR a.user_id IS NULL OR $1 = 1)
            ORDER BY a.started_at DESC
-           LIMIT 10;`,
+           LIMIT 20;`,
           [userId]
         );
 

@@ -103,6 +103,46 @@ app.get('/api/health', async (_req, res) => {
   });
 });
 
+// Live Database Diagnostic & Storage inspector endpoint
+app.get('/api/db-stats', async (_req, res) => {
+  const dbConnected = await checkDatabaseConnection();
+  if (!dbConnected) {
+    res.status(503).json({
+      databaseConnected: false,
+      message: 'PostgreSQL database is currently disconnected.',
+    });
+    return;
+  }
+
+  try {
+    const [topicsRes, questionsRes, assessmentsRes, attemptsRes, responsesRes] = await Promise.all([
+      pool.query('SELECT COUNT(*) FROM topics;').catch(() => ({ rows: [{ count: 0 }] })),
+      pool.query('SELECT COUNT(*) FROM candidate_questions;').catch(() => ({ rows: [{ count: 0 }] })),
+      pool.query('SELECT COUNT(*) FROM assessments;').catch(() => ({ rows: [{ count: 0 }] })),
+      pool.query('SELECT COUNT(*) FROM assessment_attempts;').catch(() => ({ rows: [{ count: 0 }] })),
+      pool.query('SELECT COUNT(*) FROM assessment_responses;').catch(() => ({ rows: [{ count: 0 }] })),
+    ]);
+
+    res.status(200).json({
+      status: 'ok',
+      databaseConnected: true,
+      counts: {
+        topics: parseInt(topicsRes.rows[0].count, 10),
+        candidateQuestions: parseInt(questionsRes.rows[0].count, 10),
+        assessments: parseInt(assessmentsRes.rows[0].count, 10),
+        attempts: parseInt(attemptsRes.rows[0].count, 10),
+        submittedResponses: parseInt(responsesRes.rows[0].count, 10),
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      status: 'error',
+      message: err.message,
+    });
+  }
+});
+
 // Readiness check endpoint (Kubernetes / Cloud Readiness probe)
 app.get('/api/ready', async (_req, res) => {
   const dbConnected = await checkDatabaseConnection();
