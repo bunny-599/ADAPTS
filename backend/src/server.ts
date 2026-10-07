@@ -73,6 +73,17 @@ app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(requestLogger);
 app.use('/api', globalLimiter);
 
+// Root health/info route
+app.get('/', (_req, res) => {
+  res.status(200).json({
+    name: 'ADAPTS Backend API Server',
+    status: 'online',
+    health: '/api/health',
+    ready: '/api/ready',
+    documentation: 'All API routes are served under /api/*',
+  });
+});
+
 // Health check endpoint (Liveness probe)
 app.get('/api/health', async (_req, res) => {
   const dbConnected = await checkDatabaseConnection();
