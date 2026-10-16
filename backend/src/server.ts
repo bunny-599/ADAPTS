@@ -177,56 +177,60 @@ app.use(globalErrorHandler);
 
 import { questionValidationEngine } from './services/questionValidationEngine';
 
-// Start HTTP Server
-const server = app.listen(port, () => {
-  console.log(`[ADAPTS Production Server] Running on http://localhost:${port}`);
-  console.log(`[Environment] ${process.env.NODE_ENV || 'development'}`);
-  console.log(`[CORS] Allowed Origins: ${allowedOrigins.join(', ')}`);
-  const dbConfig = getDatabaseConfig();
-  console.log(`[Database Routing] Target: ${dbConfig.user}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`);
-  checkDatabaseConnection().then((connected) => {
-    if (connected) {
-      console.log(`[Database] Successfully verified connection to PostgreSQL database "${dbConfig.database}"`);
-    } else {
-      console.warn(`[Database] Failed to connect to PostgreSQL database "${dbConfig.database}" at ${dbConfig.host}:${dbConfig.port}`);
-    }
-  });
+// Start HTTP Server when running standalone (local dev, Docker, Render)
+// When imported in Vercel Serverless Function, app is exported directly without binding local port
+let server: any;
 
-  // Revalidate persisted candidate questions asynchronously on startup
-  questionValidationEngine.revalidatePersistedQuestions()
-    .then((res) => {
-      if (res.revalidated > 0) {
-        console.log(`[Validation Engine] Startup revalidation complete: ${res.revalidated} questions analyzed (${res.markedValid} valid, ${res.markedInvalid} invalid).`);
+if (!process.env.VERCEL) {
+  server = app.listen(port, () => {
+    console.log(`[ADAPTS Production Server] Running on http://localhost:${port}`);
+    console.log(`[Environment] ${process.env.NODE_ENV || 'development'}`);
+    console.log(`[CORS] Allowed Origins: ${allowedOrigins.join(', ')}`);
+    const dbConfig = getDatabaseConfig();
+    console.log(`[Database Routing] Target: ${dbConfig.user}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`);
+    checkDatabaseConnection().then((connected) => {
+      if (connected) {
+        console.log(`[Database] Successfully verified connection to PostgreSQL database "${dbConfig.database}"`);
+      } else {
+        console.warn(`[Database] Failed to connect to PostgreSQL database "${dbConfig.database}" at ${dbConfig.host}:${dbConfig.port}`);
       }
-    })
-    .catch((err) => {
-      console.warn('[Validation Engine] Startup revalidation warning:', err.message);
     });
-});
 
-
-// Graceful Shutdown Handler
-const shutdown = async (signal: string) => {
-  console.log(`\n[Shutdown] Received ${signal}. Closing server gracefully...`);
-  server.close(async () => {
-    console.log('[Shutdown] HTTP server closed.');
-    try {
-      await pool.end();
-      console.log('[Shutdown] PostgreSQL connection pool closed.');
-    } catch (err: any) {
-      console.error('[Shutdown] Error closing database pool:', err.message);
-    }
-    process.exit(0);
+    // Revalidate persisted candidate questions asynchronously on startup
+    questionValidationEngine.revalidatePersistedQuestions()
+      .then((res) => {
+        if (res.revalidated > 0) {
+          console.log(`[Validation Engine] Startup revalidation complete: ${res.revalidated} questions analyzed (${res.markedValid} valid, ${res.markedInvalid} invalid).`);
+        }
+      })
+      .catch((err) => {
+        console.warn('[Validation Engine] Startup revalidation warning:', err.message);
+      });
   });
 
-  // Force shutdown after 10s if hanging
-  setTimeout(() => {
-    console.error('[Shutdown] Forceful shutdown timeout exceeded. Exiting.');
-    process.exit(1);
-  }, 10000).unref();
-};
+  // Graceful Shutdown Handler
+  const shutdown = async (signal: string) => {
+    console.log(`\n[Shutdown] Received ${signal}. Closing server gracefully...`);
+    server.close(async () => {
+      console.log('[Shutdown] HTTP server closed.');
+      try {
+        await pool.end();
+        console.log('[Shutdown] PostgreSQL connection pool closed.');
+      } catch (err: any) {
+        console.error('[Shutdown] Error closing database pool:', err.message);
+      }
+      process.exit(0);
+    });
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+    // Force shutdown after 10s if hanging
+    setTimeout(() => {
+      console.error('[Shutdown] Forceful shutdown timeout exceeded. Exiting.');
+      process.exit(1);
+    }, 10000).unref();
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+}
 
 export default app;

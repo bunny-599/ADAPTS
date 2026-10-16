@@ -8,6 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
+    "db:init": "tsx scripts/initDatabase.ts",
+    "export:users": "tsx scripts/exportUsersReport.ts",
     "test": "tsx test/topicAnalyzer.test.ts && tsx test/researchService.test.ts && tsx test/questionGenerator.test.ts && tsx test/questionValidation.test.ts && tsx test/geneticOptimizer.test.ts && tsx test/assessmentTaking.test.ts && tsx test/performanceAnalysis.test.ts && tsx test/adaptiveAssessment.test.ts && tsx test/learnerProgress.test.ts && tsx test/answerEvaluation.test.ts && tsx test/codingEvaluation.test.ts && tsx test/authAndProduction.test.ts"
   },
   "dependencies": {

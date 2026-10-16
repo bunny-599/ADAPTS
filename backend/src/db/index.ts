@@ -30,18 +30,28 @@ export const getDatabaseConfig = () => {
 };
 
 const isProduction = process.env.NODE_ENV === 'production';
-const useSsl = process.env.DATABASE_SSL === 'true' || 
+const isServerless = !!process.env.VERCEL || !!process.env.VERCEL_ENV || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+const isNeon = !!process.env.DATABASE_URL && (process.env.DATABASE_URL.includes('neon.tech') || process.env.DATABASE_URL.includes('pooler'));
+
+const useSsl = isNeon || process.env.DATABASE_SSL === 'true' || 
   (!!process.env.DATABASE_URL && process.env.DATABASE_SSL !== 'false' && !process.env.DATABASE_URL.includes('localhost') && !process.env.DATABASE_URL.includes('127.0.0.1')) ||
   (isProduction && process.env.DATABASE_HOST !== 'localhost' && process.env.DATABASE_HOST !== '127.0.0.1');
+
+// Serverless environments (like Vercel) require low connection pools and min: 0 to prevent connection exhaustion.
+// For Neon, connectionTimeoutMillis defaults to 10s to gracefully accommodate compute cold-start wake-ups.
+const defaultPoolMax = isServerless ? 5 : 20;
+const defaultPoolMin = isServerless ? 0 : 2;
+const defaultIdleTimeout = isServerless ? 10000 : 30000;
+const defaultConnectTimeout = 10000;
 
 const poolConfig: PoolConfig = process.env.DATABASE_URL
   ? {
       connectionString: process.env.DATABASE_URL,
       ssl: useSsl ? { rejectUnauthorized: false } : false,
-      max: parseInt(process.env.DATABASE_POOL_MAX || '20', 10),
-      min: parseInt(process.env.DATABASE_POOL_MIN || '2', 10),
-      idleTimeoutMillis: parseInt(process.env.DATABASE_IDLE_TIMEOUT || '30000', 10),
-      connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '5000', 10),
+      max: parseInt(process.env.DATABASE_POOL_MAX || String(defaultPoolMax), 10),
+      min: parseInt(process.env.DATABASE_POOL_MIN || String(defaultPoolMin), 10),
+      idleTimeoutMillis: parseInt(process.env.DATABASE_IDLE_TIMEOUT || String(defaultIdleTimeout), 10),
+      connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || process.env.DATABASE_CONNECT_TIMEOUT || String(defaultConnectTimeout), 10),
     }
   : {
       host: process.env.DATABASE_HOST || 'localhost',
@@ -50,13 +60,22 @@ const poolConfig: PoolConfig = process.env.DATABASE_URL
       user: process.env.DATABASE_USER || 'postgres',
       password: process.env.DATABASE_PASSWORD || 'postgres',
       ssl: useSsl ? { rejectUnauthorized: false } : false,
-      max: parseInt(process.env.DATABASE_POOL_MAX || '20', 10),
-      min: parseInt(process.env.DATABASE_POOL_MIN || '2', 10),
-      idleTimeoutMillis: parseInt(process.env.DATABASE_IDLE_TIMEOUT || '30000', 10),
-      connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '5000', 10),
+      max: parseInt(process.env.DATABASE_POOL_MAX || String(defaultPoolMax), 10),
+      min: parseInt(process.env.DATABASE_POOL_MIN || String(defaultPoolMin), 10),
+      idleTimeoutMillis: parseInt(process.env.DATABASE_IDLE_TIMEOUT || String(defaultIdleTimeout), 10),
+      connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || process.env.DATABASE_CONNECT_TIMEOUT || String(defaultConnectTimeout), 10),
     };
 
-export const pool = new Pool(poolConfig);
+declare global {
+  var __adaptsPgPool: Pool | undefined;
+}
+
+// Preserve existing pool instance across hot reloads and serverless function container re-invocations
+export const pool = globalThis.__adaptsPgPool || new Pool(poolConfig);
+
+if (isProduction || isServerless) {
+  globalThis.__adaptsPgPool = pool;
+}
 
 pool.on('error', (err) => {
   console.error('[PostgreSQL Pool Error] Unexpected idle client error:', err.message);
@@ -403,6 +422,8 @@ export const initDatabase = async (): Promise<boolean> => {
             title VARCHAR(255) NOT NULL,
             message TEXT NOT NULL,
             read BOOLEAN NOT NULL DEFAULT false,
+            read_at TIMESTAMP WITH TIME ZONE,
+            metadata JSONB DEFAULT '{}'::jsonb,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         );
         CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
@@ -428,6 +449,7 @@ export const initDatabase = async (): Promise<boolean> => {
           ALTER TABLE skill_history ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
           ALTER TABLE assessment_performance_history ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
           ALTER TABLE notifications ADD COLUMN IF NOT EXISTS read_at TIMESTAMP WITH TIME ZONE;
+          ALTER TABLE notifications ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
         `);
       } catch (pass2Error: any) {
         console.warn('[Database Init] Migration Pass 2 notice:', pass2Error.message);
@@ -503,13 +525,25 @@ export const initDatabase = async (): Promise<boolean> => {
   }
 };
 
+let isInitialized = false;
+
 export const checkDatabaseConnection = async (): Promise<boolean> => {
   try {
     const client = await pool.connect();
-    client.release();
-    const initialized = await initDatabase();
-    isDbAvailable = initialized;
-    return initialized;
+    try {
+      await client.query('SELECT 1;');
+    } finally {
+      client.release();
+    }
+
+    if (!isInitialized) {
+      isInitialized = await initDatabase();
+      isDbAvailable = isInitialized;
+    } else {
+      isDbAvailable = true;
+    }
+
+    return isDbAvailable;
   } catch (error) {
     isDbAvailable = false;
     return false;
